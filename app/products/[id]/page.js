@@ -9,6 +9,8 @@ import useProduct from "@/hooks/useProduct";
 import useProductReviews from "@/hooks/useProductReviews";
 import useVariantPicker from "@/hooks/useVariantPicker";
 import { titleCase, normRegion } from "@/utils/location";
+import { formatPrice } from "@/utils/currency";
+import { wholesaleOf } from "@/utils/wholesale";
 import ReviewSection from "@/components/ReviewSection";
 import ReportButton from "@/components/ReportButton";
 import {
@@ -80,6 +82,11 @@ function ProductView({ product, vendor, reviewsState }) {
   const isOutOfStock = !!selectedVariant && stock <= 0;
   const isUnavailable = isInactive || allOutOfStock || isOutOfStock;
   const safeQty = Math.min(qty, Math.max(stock, 1)); // also covers live stock drops
+
+  // wholesale: lower price per item once the quantity reaches the vendor's minimum
+  const ws = wholesaleOf(product.price, product.wholesale);
+  const onWs = !!ws && safeQty >= ws.minQty;
+  const cur = product.currency || "GHS";
 
   const variantKey = `${selectedVariant?.color}|${selectedVariant?.size}`;
   useEffect(() => {
@@ -241,8 +248,13 @@ function ProductView({ product, vendor, reviewsState }) {
 
           {/* Price and stock */}
           <div className="mb-6 flex flex-wrap items-end gap-3">
-            <span className="text-3xl font-extrabold text-ink-900">{product.displayPrice}</span>
-            {product.displayOldPrice && (
+            <span className="text-3xl font-extrabold text-ink-900">
+              {onWs ? formatPrice(ws.price, cur) : product.displayPrice}
+            </span>
+            {onWs && (
+              <span className="mb-1 text-lg font-medium text-ink-400 line-through">{product.displayPrice}</span>
+            )}
+            {!onWs && product.displayOldPrice && (
               <span className="mb-1 text-lg font-medium text-ink-400 line-through">
                 {product.displayOldPrice}
               </span>
@@ -262,6 +274,22 @@ function ProductView({ product, vendor, reviewsState }) {
               )
             )}
           </div>
+
+          {ws && (
+            <div
+              className={`mb-6 rounded-xl border px-4 py-3 text-sm font-bold ${
+                onWs ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"
+              }`}
+            >
+              🏷️{" "}
+              {onWs
+                ? `Wholesale price applied: ${formatPrice(ws.price, cur)} each for ${safeQty} items`
+                : `Buy ${ws.minQty} or more and pay ${formatPrice(ws.price, cur)} each (save ${formatPrice(
+                    product.price - ws.price,
+                    cur
+                  )} per item)`}
+            </div>
+          )}
 
           {/* Vendor card */}
           {vendor && (

@@ -152,9 +152,24 @@ export default function CartPage() {
 
                   <div className="mt-2 flex items-end justify-between gap-2">
                     <div>
-                      <p className="text-sm font-extrabold text-ink-900">
+                      <p className="flex flex-wrap items-center gap-x-2 text-sm font-extrabold text-ink-900">
                         {formatPrice(item.unit, item.unitCurrency)}
+                        {item.onWholesale && (
+                          <>
+                            <span className="text-xs font-medium text-ink-400 line-through">
+                              {formatPrice(item.retailUnit, item.unitCurrency)}
+                            </span>
+                            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-extrabold text-emerald-700">
+                              WHOLESALE
+                            </span>
+                          </>
+                        )}
                       </p>
+                      {!item.onWholesale && item.wsNeed > 0 && (
+                        <p className="text-[11px] font-semibold text-amber-600">
+                          Add {item.wsNeed} more to pay {formatPrice(item.wsUnit, item.unitCurrency)} each
+                        </p>
+                      )}
                       {item.variantStock > 0 && (
                         <p className="text-[11px] text-ink-400">{item.variantStock} available</p>
                       )}

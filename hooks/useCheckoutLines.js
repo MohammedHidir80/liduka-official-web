@@ -6,6 +6,14 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import useProduct from "@/hooks/useProduct";
 import { cartKey } from "@/utils/cart";
+import { wholesalePricing } from "@/utils/wholesale";
+
+// price = the unit price that applies (wholesale when the quantity qualifies); retailPrice = the normal price.
+// Same rule as the server, counted over the lines being bought.
+const withWholesale = (lines) => {
+  const priced = wholesalePricing(lines.map((l) => ({ id: l.id, price: l.price, quantity: l.quantity, wholesale: l.wholesale })));
+  return lines.map((l, i) => ({ ...l, retailPrice: l.price, price: priced[i].price, onWholesale: priced[i].onWholesale }));
+};
 
 export default function useCheckoutLines() {
   const params = useSearchParams();
@@ -40,12 +48,13 @@ export default function useCheckoutLines() {
       else if (stock <= 0 || buyQty > stock) status = "out-of-stock";
 
       return {
-        lines: [
+        lines: withWholesale([
           {
             key: cartKey(p.id, variant?.variantId ?? null),
             id: p.id,
             title: p.title,
             price: p.price,
+            wholesale: p.wholesale || null,
             currency: p.currency,
             image: p.image || "",
             quantity: buyQty,
@@ -58,7 +67,7 @@ export default function useCheckoutLines() {
             valid: status === "ok",
             variantStock: stock,
           },
-        ],
+        ]),
         loading: false,
         source: "buy",
       };
@@ -69,11 +78,12 @@ export default function useCheckoutLines() {
 
     const picked = only ? items.filter((i) => i.key === only) : items;
     return {
-      lines: picked.map((i) => ({
+      lines: withWholesale(picked.map((i) => ({
         key: i.key,
         id: i.id,
         title: i.title,
         price: i.price,
+        wholesale: i.wholesale || null,
         currency: i.currency,
         image: i.image,
         quantity: i.quantity,
@@ -85,7 +95,7 @@ export default function useCheckoutLines() {
         status: i.status,
         valid: i.valid,
         variantStock: i.variantStock,
-      })),
+      }))),
       loading: false,
       source: only ? "only" : "cart",
     };

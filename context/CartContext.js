@@ -14,6 +14,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { getExchangeRate, formatPrice } from "@/utils/currency";
 import { cartKey, cartImageUrl, toStoredItem } from "@/utils/cart";
+import { wholesalePricing } from "@/utils/wholesale";
 
 const CartContext = createContext(null);
 
@@ -31,6 +32,7 @@ function toLive(snap) {
     image: images[0] || "",
     price: Number(d.price) || 0,
     currency: d.currency || "GHS",
+    wholesale: d.wholesale?.minQty ? { minQty: Number(d.wholesale.minQty), price: Number(d.wholesale.price) } : null,
   };
 }
 
@@ -42,6 +44,7 @@ function resolveItem(item, live) {
   let currency = item.currency || "GHS";
   let title = item.title || "";
   let image = cartImageUrl(item.image);
+  let wholesale = null;
 
   if (live) {
     if (!live.exists) {
@@ -52,6 +55,7 @@ function resolveItem(item, live) {
       currency = live.currency;
       title = live.title || title;
       image = live.image || image;
+      wholesale = live.wholesale || null;
 
       if (item.variantId) {
         const v = live.variants.find((x) => x.variantId === item.variantId);
@@ -73,7 +77,7 @@ function resolveItem(item, live) {
   const stored = Number(item.quantity) || 1;
   const quantity = stock > 0 ? Math.min(stored, stock) : stored;
 
-  return { stock, status, price, currency, title, image, quantity };
+  return { stock, status, price, currency, title, image, quantity, wholesale };
 }
 
 export function CartProvider({ children }) {
@@ -165,8 +169,13 @@ export function CartProvider({ children }) {
 
   // 4) What the UI reads
   const items = useMemo(
-    () =>
-      resolved.map(({ item, stock, status, price, currency, title, image, quantity }) => {
+    () => {
+      // wholesale: the unit price drops once the TOTAL quantity of a product reaches its minimum
+      const pricing = wholesalePricing(
+        resolved.map((r) => ({ id: r.item.id, price: r.price, quantity: r.quantity, wholesale: r.wholesale }))
+      );
+      return resolved.map(({ item, stock, status, price, currency, title, image, quantity, wholesale }, idx) => {
+        const wp = pricing[idx];
         const rate = currency === target ? 1 : rates[`${currency}_${target}`];
         const key = cartKey(item.id, item.variantId);
         return {
@@ -180,7 +189,12 @@ export function CartProvider({ children }) {
           variantStock: stock,
           status,
           valid: status === "ok",
-          unit: rate ? price * rate : price,
+          wholesale,
+          unit: rate ? wp.price * rate : wp.price, // price that applies now (wholesale when it qualifies)
+          retailUnit: rate ? price * rate : price,
+          onWholesale: wp.onWholesale,
+          wsNeed: wp.need, // more items needed to get the wholesale price
+          wsUnit: rate ? wp.wsPrice * rate : wp.wsPrice,
           unitCurrency: rate ? target : currency,
           // old web names, so pages not migrated yet don't crash
           cartItemId: key,
@@ -191,7 +205,8 @@ export function CartProvider({ children }) {
             ...(item.size ? { Size: item.size } : {}),
           },
         };
-      }),
+      });
+    },
     [resolved, rates, target]
   );
   itemsRef.current = items;

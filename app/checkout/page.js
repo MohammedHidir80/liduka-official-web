@@ -251,6 +251,15 @@ function CheckoutContent() {
                     <div className="mt-1 flex items-center justify-between text-sm">
                       <span className="text-ink-500">
                         {money(l.price)} x {l.quantity}
+                        {l.onWholesale && (
+                          <>
+                            {" "}
+                            <span className="text-xs text-ink-400 line-through">{money(l.retailPrice)}</span>{" "}
+                            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-extrabold text-emerald-700">
+                              WHOLESALE
+                            </span>
+                          </>
+                        )}
                       </span>
                       <span className="font-bold text-ink-900">{money(l.price * l.quantity)}</span>
                     </div>
