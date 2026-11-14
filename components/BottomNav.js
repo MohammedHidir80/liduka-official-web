@@ -4,12 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
+import { useNotifications } from "@/context/NotificationContext";
+import usePendingOrders from "@/hooks/usePendingOrders";
 import { HomeIcon, BagIcon, HeartIcon, UserIcon, PlusIcon } from "./icons";
 
 export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { t } = useSettings();
+  const { notifications } = useNotifications();
+  // vendors: orders waiting to be accepted (badge on the Orders tab)
+  const pending = usePendingOrders(user?.role === "vendor" ? user.uid : null, notifications?.[0]?.id);
 
   if (!user) return null;
 
@@ -22,7 +27,7 @@ export default function BottomNav() {
 
   const vendorTabs = [
     { href: "/vendor", label: t.home, Icon: HomeIcon, exact: true },
-    { href: "/vendor/orders", label: t.orders, Icon: BagIcon },
+    { href: "/vendor/orders", label: t.orders, Icon: BagIcon, badge: pending },
     { href: "/vendor/products/new", label: t.add, Icon: PlusIcon, primary: true },
     { href: "/vendor/profile", label: t.profile, Icon: UserIcon },
   ];
@@ -61,7 +66,14 @@ export default function BottomNav() {
                   active ? "text-brand-600" : "text-ink-400"
                 }`}
               >
-                <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
+                <span className="relative">
+                  <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
+                  {tab.badge > 0 && (
+                    <span className="absolute -right-2.5 -top-1.5 grid h-4 min-w-[16px] place-items-center rounded-full border-2 border-white bg-rose-500 px-1 text-[10px] font-bold text-white">
+                      {tab.badge > 99 ? "99+" : tab.badge}
+                    </span>
+                  )}
+                </span>
                 <span>{tab.label}</span>
                 <span
                   className={`h-1 w-1 rounded-full transition ${

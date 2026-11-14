@@ -8,6 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { useWallet } from "@/context/WalletContext";
 import { useSettings } from "@/context/SettingsContext";
 import { useNotifications } from "@/context/NotificationContext";
+import usePendingOrders from "@/hooks/usePendingOrders";
 import { timeAgo } from "@/lib/format";
 import { formatPrice } from "@/utils/currency";
 import { getIconDetails } from "@/utils/notifications";
@@ -22,6 +23,8 @@ export default function TopBar() {
   const { t } = useSettings();
   const { notifications, unreadCount, markAsRead, markAllAsRead, ready } = useNotifications();
   const pathname = usePathname();
+  // vendors: orders waiting to be accepted (badge next to Orders)
+  const pending = usePendingOrders(user?.role === "vendor" ? user.uid : null, notifications?.[0]?.id);
 
   const [showNotifs, setShowNotifs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -50,7 +53,7 @@ export default function TopBar() {
   const isHome = pathname === homeHref;
 
   const desktopLinks = isVendor
-    ? [{ href: "/vendor", label: t.dashboard }, { href: "/vendor/orders", label: t.orders }]
+    ? [{ href: "/vendor", label: t.dashboard }, { href: "/vendor/orders", label: t.orders, badge: pending }]
     : [{ href: "/", label: t.home }, { href: "/orders", label: t.myOrders }, { href: "/saved", label: t.saved }];
 
   return (
@@ -79,6 +82,11 @@ export default function TopBar() {
                 }`}
             >
               {link.label}
+              {link.badge > 0 && (
+                <span className="ml-1.5 inline-grid h-4 min-w-[16px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                  {link.badge > 99 ? "99+" : link.badge}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

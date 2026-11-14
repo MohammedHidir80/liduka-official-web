@@ -1,5 +1,7 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { refreshPendingOrders } from "@/hooks/usePendingOrders";
 import useVendorOrders from "@/hooks/useVendorOrders";
 import VendorOrderModal, { STATUS_STYLE } from "@/components/VendorOrderModal";
 import { formatPrice } from "@/utils/currency";
@@ -13,6 +15,10 @@ export default function VendorOrdersPage() {
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const { user } = useAuth();
+  // keep the Orders badge right after orders are accepted / cancelled here
+  const pendingHere = orders.filter((o) => o.status === "pending").length;
+  useEffect(() => { if (user?.uid) refreshPendingOrders(user.uid, true); }, [user?.uid, pendingHere]);
 
   const list = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -59,10 +65,23 @@ export default function VendorOrdersPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={o.productImage} alt="" className="h-16 w-16 shrink-0 rounded-lg bg-gray-100 object-cover" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{o.productTitle}</p>
+                  <p className="truncate font-semibold">
+                    {o.productTitle}
+                    {o.priceTier === "wholesale" && (
+                      <span className="ml-2 rounded bg-emerald-100 px-1.5 py-0.5 align-middle text-[10px] font-extrabold text-emerald-700">
+                        WHOLESALE
+                      </span>
+                    )}
+                  </p>
                   <p className="truncate text-sm text-ink-500">
                     {o.address?.fullName} · x{o.quantity}{[o.color, o.size].filter(Boolean).length ? ` · ${[o.color, o.size].filter(Boolean).join(" · ")}` : ""}
                   </p>
+                  {o.priceTier === "wholesale" && (
+                    <p className="text-xs font-semibold text-emerald-700">
+                      {formatPrice(o.unitPrice ?? 0, o.currency || "GHS")} each
+                      {o.retailPrice > 0 && ` · retail ${formatPrice(o.retailPrice, o.currency || "GHS")}`}
+                    </p>
+                  )}
                   <p className="text-xs text-ink-500">{o.createdAt?.seconds ? new Date(o.createdAt.seconds * 1000).toLocaleString() : ""}</p>
                 </div>
                 <div className="text-right">
