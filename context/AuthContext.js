@@ -53,6 +53,14 @@ export function AuthProvider({ children }) {
   const [authChecked, setAuthChecked] = useState(false);
   const [user, setUser] = useState(null);
   const [profileUid, setProfileUid] = useState(null); // uid whose profile has finished loading
+  const [giveUp, setGiveUp] = useState(false); // safety: never keep the splash up forever
+
+  // If Firebase auth or the profile listener never answers (blocked network, in-app browser, slow connection),
+  // stop waiting after 8s and show the app. The listeners keep running and fill in the user when they answer.
+  useEffect(() => {
+    const t = setTimeout(() => setGiveUp(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
 
   // 1) Firebase auth session
   useEffect(() => {
@@ -89,7 +97,7 @@ export function AuthProvider({ children }) {
 
   // Not ready until auth is checked AND (no verified user, or their profile has loaded)
   const ready =
-    authChecked && (!fbUser || !verified || profileUid === fbUser.uid);
+    giveUp || (authChecked && (!fbUser || !verified || profileUid === fbUser.uid));
 
   // Call after the user clicks the email link and returns to the site
   const refreshUser = useCallback(async () => {

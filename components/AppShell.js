@@ -26,6 +26,13 @@ const SHARED_ROUTES = ["/customer-service", "/notifications"];
 const isUnder = (path, base) => path === base || path.startsWith(base + "/");
 
 function Splash() {
+  const [slow, setSlow] = useState(false);
+  // If the splash stays up for 6s, tell the visitor and let them retry instead of waiting forever
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 6000);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white">
       <div className="animate-pulse">
@@ -36,12 +43,19 @@ function Splash() {
         <span className="h-2 w-2 animate-bounce rounded-full bg-brand-500" style={{ animationDelay: "150ms" }} />
         <span className="h-2 w-2 animate-bounce rounded-full bg-brand-500" style={{ animationDelay: "300ms" }} />
       </div>
+      {slow && (
+        <div className="mt-6 px-6 text-center">
+          <p className="text-sm font-semibold text-ink-500">Taking longer than usual. Check your internet connection.</p>
+          <button onClick={() => window.location.reload()} className="btn-outline mt-3 px-5 py-2 text-sm">
+            Reload
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function AppShell({ children }) {
-  const [mounted, setMounted] = useState(false);
   const { user, ready } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -53,7 +67,7 @@ export default function AppShell({ children }) {
 
   // Decided during render, so a wrong-role page never mounts
   let redirectTo = null;
-  if (mounted && ready && !isPublicRoute) {
+  if (ready && !isPublicRoute) {
     if (!user && !isAuthRoute) {
       redirectTo = isVendorArea ? "/vendor/login" : "/login";
     } else if (user && isAuthRoute) {
@@ -65,15 +79,32 @@ export default function AppShell({ children }) {
   }
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
     if (redirectTo) router.replace(redirectTo);
   }, [redirectTo, router]);
 
-  if (!mounted || !ready) return <Splash />;
-  if (isPublicRoute) return <>{children}</>;
+  // After a new deploy, a phone holding the old page asks for files that no longer exist.
+  // Reload once so it picks up the new version (guarded so it can never loop).
+  useEffect(() => {
+    const onErr = (e) => {
+      const msg = String(e?.message || e?.reason?.message || "");
+      if (/ChunkLoadError|Loading chunk|Failed to fetch dynamically imported module/i.test(msg)) {
+        try {
+          if (sessionStorage.getItem("chunk-reload")) return;
+          sessionStorage.setItem("chunk-reload", "1");
+        } catch {}
+        window.location.reload();
+      }
+    };
+    window.addEventListener("error", onErr);
+    window.addEventListener("unhandledrejection", onErr);
+    return () => {
+      window.removeEventListener("error", onErr);
+      window.removeEventListener("unhandledrejection", onErr);
+    };
+  }, []);
+
+  if (isPublicRoute) return <>{children}</>; // terms etc. never wait for sign-in
+  if (!ready) return <Splash />;
   if (redirectTo) return <Splash />;
   if (isAuthRoute) return <>{children}</>;
 
