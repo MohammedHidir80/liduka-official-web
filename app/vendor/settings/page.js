@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { collection, doc, getDocs, query, updateDoc, where, writeBatch } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -18,9 +20,30 @@ const LANGUAGES = [
 
 export default function VendorSettingsPage() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { language, setLanguage, t } = useSettings();
   const [langOpen, setLangOpen] = useState(false);
+  const [intl, setIntl] = useState(!!user?.shipsInternationally);
+  const [busy, setBusy] = useState(false);
+
+  const applyIntl = async (next) => {
+    if (!user?.uid) return;
+    if (next && !confirm("Ship internationally? Buyers in other countries will see your products. You and the buyer agree between yourselves who pays import duties and taxes, so message them before shipping.")) return;
+    setBusy(true);
+    try {
+      await updateDoc(doc(db, "users", user.uid), { shipsInternationally: next });
+      const snap = await getDocs(query(collection(db, "products"), where("vendorId", "==", user.uid)));
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        const b = writeBatch(db);
+        snap.docs.slice(i, i + 400).forEach((d) => b.update(d.ref, { shipsInternationally: next }));
+        await b.commit();
+      }
+      setIntl(next);
+    } catch (e) {
+      console.error(e);
+      alert("Could not save. Please try again.");
+    } finally { setBusy(false); }
+  };
 
   const current = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];
 
@@ -69,6 +92,20 @@ export default function VendorSettingsPage() {
             <ChevronRightIcon size={18} className="text-ink-300" />
           </div>
         </button>
+      </div>
+
+      {/* International shipping */}
+      <div className="card space-y-2 border border-ink-100 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-ink-900">I ship internationally</p>
+            <p className="text-xs text-ink-500">Let buyers in other countries see and order your products. Prices are converted for them automatically.</p>
+          </div>
+          <input type="checkbox" className="h-5 w-5" checked={intl} disabled={busy} onChange={(e) => applyIntl(e.target.checked)} />
+        </div>
+        <p className="border-t border-ink-50 pt-2 text-xs text-ink-500">
+          Your country: <b className="text-ink-900">{user?.country || "Not set yet"}{user?.currency ? ` · ${user.currency}` : ""}</b>. Set automatically at signup and can't be changed here. Contact Customer Service if it's wrong.
+        </p>
       </div>
 
       {/* Language picker */}

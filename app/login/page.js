@@ -14,6 +14,7 @@ import {
   MailIcon, LockIcon, UserCircleIcon, EyeIcon, EyeOffIcon,
 } from "@/components/icons";
 import Logo from "@/components/logo";
+import DetectedCountry from "@/components/DetectedCountry";
 
 const DIAL_CODES = [
   { code: "+233", label: "GH +233" },
@@ -42,6 +43,7 @@ export default function LoginPage() {
   const [phone, setPhone] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptedTnC, setAcceptedTnC] = useState(false);
+  const [geo, setGeo] = useState("checking"); // country from the IP: checking | ok | unsupported | error
 
   const [showPw, setShowPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
@@ -65,6 +67,7 @@ export default function LoginPage() {
       if (!fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim())
         return fail("Missing Information", "Please fill out all fields.");
       if (password !== confirmPassword) return fail("Password Mismatch", "Passwords do not match.");
+      if (geo !== "ok") return fail("Country", geo === "unsupported" ? "Liduka isn't available in your country yet." : "We need to confirm your country first. Please wait or tap Retry.");
     } else if (!email.trim() || !password.trim()) {
       return fail("Missing Information", "Please enter your email and password.");
     }
@@ -155,6 +158,8 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleAuth} className="space-y-4" noValidate>
+            {isSignUp && <DetectedCountry onResult={setGeo} />}
+
             {/* Email */}
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400"><MailIcon size={18} /></span>

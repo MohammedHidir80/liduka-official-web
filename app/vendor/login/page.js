@@ -13,6 +13,7 @@ import { getGeoCurrency } from "@/utils/getGeoCurrency";
 import { getUserLocation } from "@/utils/getUserLocation";
 import { normalizePhone, isValidPhone } from "@/utils/phone";
 import Logo from "@/components/logo";
+import DetectedCountry from "@/components/DetectedCountry";
 import {
   MailIcon, LockIcon, StoreIcon, KeyIcon, EyeIcon, EyeOffIcon,
 } from "@/components/icons";
@@ -34,6 +35,7 @@ export default function VendorAuthPage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [geo, setGeo] = useState("checking"); // country from the IP: checking | ok | unsupported | error
 
   const [showPw, setShowPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
@@ -57,6 +59,7 @@ export default function VendorAuthPage() {
         return fail("Missing Info", "Please fill all fields.");
       if (password !== confirmPassword) return fail("Password Mismatch", "Passwords don't match.");
       if (!inviteCode.trim()) return fail("Invite Code Required", "Please enter your invite code.");
+      if (geo !== "ok") return fail("Country", geo === "unsupported" ? "Liduka isn't available in your country yet." : "We need to confirm your country first. Please wait or tap Retry.");
       if (phone.trim() && !isValidPhone(phoneNorm))
         return fail("Invalid Phone", "Please enter a valid phone number, or leave it empty.");
     } else if (!email.trim() || !password.trim()) {
@@ -216,6 +219,8 @@ export default function VendorAuthPage() {
           )}
 
           <form onSubmit={handleAuth} className="space-y-5" noValidate>
+            {isSignUp && <DetectedCountry onResult={setGeo} />}
+
             {/* Email */}
             <div>
               <label className="mb-1.5 block text-xs font-bold text-ink-600">

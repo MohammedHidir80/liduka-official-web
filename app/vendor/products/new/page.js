@@ -123,6 +123,7 @@ export default function AddProductPage() {
         city: u.city || null,
         region: u.region || null,
         country: u.country || null,
+        countryCode: u.countryCode || null,
         status: "uploading",
         createdAt: serverTimestamp(),
       });

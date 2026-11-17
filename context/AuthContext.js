@@ -8,7 +8,7 @@ import {
   useCallback,
 } from "react";
 import { onAuthStateChanged, reload } from "firebase/auth";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import {
   signUp,
@@ -19,6 +19,7 @@ import {
 } from "@/lib/auth";
 
 const AuthContext = createContext(null);
+let lastTouch = { uid: null, at: 0 }; // when 'last seen' was last written (module level, survives re-renders)
 
 function hueFromString(s = "") {
   let h = 0;
@@ -93,6 +94,22 @@ export function AuthProvider({ children }) {
       }
     );
     return () => unsub();
+  }, [fbUser, verified]);
+
+  // "Last seen": when a verified person opens the site or comes back to the tab (at most once every 10 minutes)
+  useEffect(() => {
+    if (!fbUser || !verified) return;
+    const uid = fbUser.uid;
+    const touch = () => {
+      const now = Date.now();
+      if (lastTouch.uid === uid && now - lastTouch.at < 10 * 60 * 1000) return;
+      lastTouch = { uid, at: now };
+      updateDoc(doc(db, "users", uid), { lastActive: serverTimestamp() }).catch(() => {});
+    };
+    touch();
+    const onVisible = () => { if (document.visibilityState === "visible") touch(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
   }, [fbUser, verified]);
 
   // Not ready until auth is checked AND (no verified user, or their profile has loaded)
