@@ -53,7 +53,7 @@ export default function TermsConditions() {
                 <div className="mt-10 pt-6 border-t-2 border-gray-200">
                     <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">13. Contact Us</h2>
                     <p className="text-gray-800 leading-relaxed mb-2">If you have any questions about these Terms & Conditions, contact us:</p>
-                    <p className="text-gray-800 mb-1">📧 <a href="mailto:support@liduka.app" className="text-blue-700 font-medium hover:underline">liduka059@gmail.com</a></p>
+                    <p className="text-gray-800 mb-1">📧 <a href="mailto:support@liduka.com" className="text-blue-700 font-medium hover:underline">support@liduka.com</a></p>
                     <p className="text-gray-800 mb-6">📞 +233 503 801 853</p>
                 </div>
 
