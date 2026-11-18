@@ -9,12 +9,15 @@ import { calculateDepositFee } from "@/utils/calculateDepositFee";
 import { formatPrice } from "@/utils/currency";
 import { WalletIcon, PlusIcon, ArrowDownLeftIcon, CreditCardIcon, XIcon } from "@/components/icons";
 
-const CURRENCY = "GHS"; // wallet currency, same as checkout
-const QUICK_AMOUNTS = [50, 100, 200, 500, 1000];
-const MIN_DEPOSIT = 1;
-const MAX_DEPOSIT = 1000000;
 
-const money = (n) => formatPrice(n, CURRENCY);
+const QUICK = {
+  GHS: [50, 100, 200, 500, 1000],
+  NGN: [1000, 2000, 5000, 10000, 20000],
+  KES: [500, 1000, 2000, 5000, 10000],
+  ZAR: [100, 200, 500, 1000, 2000],
+};
+const MINS = { GHS: 1, NGN: 100, KES: 50, ZAR: 10 }; // same minimums as the server
+const MAX_DEPOSIT = 1000000;
 
 // Refunds put money back, so they count as credits (mobile shows them as debits)
 const isCredit = (tx) => tx.type === "credit" || tx.type === "refund";
@@ -37,6 +40,10 @@ function DetailRow({ label, children }) {
 
 export default function WalletPage() {
   const { user } = useAuth();
+  const CURRENCY = user?.currency || "GHS"; // the account's currency (the server also enforces it)
+  const MIN_DEPOSIT = MINS[CURRENCY] || 1;
+  const QUICK_AMOUNTS = QUICK[CURRENCY] || QUICK.GHS;
+  const money = (n) => formatPrice(n, CURRENCY);
   const { balance, ready } = useWallet();
   const { transactions, loading: txLoading, error: txError } = useTransactions();
 

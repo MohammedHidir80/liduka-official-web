@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -9,14 +9,13 @@ import { useWallet } from "@/context/WalletContext";
 import { useSettings } from "@/context/SettingsContext";
 import useCheckoutLines from "@/hooks/useCheckoutLines";
 import useDeliveryQuote from "@/hooks/useDeliveryQuote";
+import useCheckoutQuote from "@/hooks/useCheckoutQuote";
 import { placeOrder, allocateDiscounts, round2, WALLET_CURRENCY } from "@/lib/placeOrder";
 import { validateAndApplyCoupon } from "@/utils/coupon";
 import { getPlatformFee } from "@/utils/fees";
-import { formatPrice } from "@/utils/currency";
+import { formatPrice, getExchangeRate } from "@/utils/currency";
 import { districtLabel, regionLabel } from "@/utils/ghana";
 import { WalletIcon, CheckIcon, ChevronLeftIcon, MapPinIcon, XIcon } from "@/components/icons";
-
-const money = (n) => formatPrice(n, WALLET_CURRENCY);
 
 // "Kofi Mensah, Tamale Metro, Northern": district and region as readable labels
 const addressLine = (a) =>
@@ -25,6 +24,9 @@ const addressLine = (a) =>
 function CheckoutContent() {
   const router = useRouter();
   const { user } = useAuth();
+  // The wallet, fees and totals are in the account's own currency (set by the server from the IP country)
+  const cur = user?.currency || WALLET_CURRENCY;
+  const money = (n) => formatPrice(n, cur);
   const { removeMultipleFromCart } = useCart();
   const { balance, ready: walletReady } = useWallet();
   const { t } = useSettings();
@@ -44,6 +46,31 @@ function CheckoutContent() {
 
   const quote = useDeliveryQuote(selectedAddress, lines);
 
+  // Products from another country: the server locks the converted price for 15 minutes
+  // The server decides (it reads each product's real currency), so this works whatever the client lines say.
+  const fx = useCheckoutQuote(lines, lines.length > 0 && !linesLoading && !!user);
+  const needsQuote = !!fx.quote || lines.some((l) => l.currency !== cur);
+
+  // Estimate (like mobile) while the locked price is pending, or if it can't be given: rate x vendor price.
+  const [rates, setRates] = useState({});
+  const baseKey = useMemo(
+    () => [...new Set(lines.map((l) => l.currency))].filter((c) => c && c !== cur).sort().join("|"),
+    [lines, cur]
+  );
+  useEffect(() => {
+    if (!baseKey) return;
+    let cancelled = false;
+    Promise.all(baseKey.split("|").map(async (b) => [b, await getExchangeRate(b, cur)])).then((pairs) => {
+      if (!cancelled) setRates((prev) => ({ ...prev, ...Object.fromEntries(pairs) }));
+    });
+    return () => { cancelled = true; };
+  }, [baseKey, cur]);
+  const conv = (l, n) => (l.currency === cur ? n : rates[l.currency] ? n * rates[l.currency] : null);
+  const estSubtotal = lines.every((l) => conv(l, 1) != null)
+    ? round2(lines.reduce((sum, l) => sum + conv(l, l.price * l.quantity), 0))
+    : null;
+  const fxLine = (l) => fx.quote?.lines?.find((q) => q.productId === l.id && (q.variantId || null) === (l.variantId || null));
+
   // Coupon
   const [couponCode, setCouponCode] = useState("");
   const [couponStatus, setCouponStatus] = useState(null); // "valid" | "error"
@@ -57,28 +84,37 @@ function CheckoutContent() {
 
   const singleVendor = lines.length > 0 && lines.every((l) => l.vendorId === lines[0].vendorId);
 
-  // Totals (the wallet and all fees are in GHS, like the platform wallet on mobile)
+  // Totals (the wallet and all fees are in the account currency)
   const lineDiscounts = useMemo(
     () => allocateDiscounts(lines, perProductDiscounts),
     [lines, perProductDiscounts]
   );
-  const discount = round2(lineDiscounts.reduce((s, n) => s + n, 0));
-  const totalPrice = round2(lines.reduce((s, l) => s + l.price * l.quantity, 0));
+  const discount = needsQuote ? 0 : round2(lineDiscounts.reduce((s, n) => s + n, 0)); // no coupons on international orders
+  const estimating = needsQuote && !fx.quote;
+  const totalPrice = fx.quote
+    ? fx.quote.productsTotal
+    : estimating
+    ? estSubtotal ?? 0
+    : round2(lines.reduce((s, l) => s + l.price * l.quantity, 0));
   const finalPrice = Math.max(round2(totalPrice - discount), 0);
-  const purchaseFee = getPlatformFee(WALLET_CURRENCY, finalPrice);
-  const deliveryFee = quote.fee;
-  const grandTotal = round2(finalPrice + purchaseFee + deliveryFee);
+  const purchaseFee = fx.quote ? fx.quote.platformFee : getPlatformFee(cur, finalPrice);
+  const deliveryFee = fx.quote ? 0 : quote.fee; // international: delivery is arranged with the vendor
+  const grandTotal = fx.quote ? fx.quote.total : round2(finalPrice + purchaseFee + deliveryFee);
+  const quoteReady = fx.checked && (!fx.quote || !fx.expired); // wait for the server before ordering
+  const platformOnlyBlock = !!fx.quote && quote.mode === "platform";
   const insufficient = walletReady && balance < grandTotal;
+  // while a foreign cart has no converted quote yet, never show the vendor's raw numbers
+  const pm = (n) => (estimating ? (estSubtotal == null ? "…" : `≈ ${money(n)}`) : money(n));
 
   // Vendor arranged delivery: the vendor phones the buyer, so the address needs a phone number
   const missingPhone = quote.mode === "vendor" && !!selectedAddress && !selectedAddress.phone;
 
   const hasInvalid = lines.some((l) => !l.valid);
-  const hasForeignCurrency = lines.some((l) => l.currency !== WALLET_CURRENCY);
   const canPlace =
     lines.length > 0 &&
     !hasInvalid &&
-    !hasForeignCurrency &&
+    quoteReady &&
+    !platformOnlyBlock &&
     !!selectedAddress &&
     !missingPhone &&
     !quote.loading &&
@@ -132,7 +168,8 @@ function CheckoutContent() {
       await placeOrder({
         lines,
         address: selectedAddress,
-        couponCode: couponStatus === "valid" ? couponCode.trim() : "",
+        couponCode: !needsQuote && couponStatus === "valid" ? couponCode.trim() : "",
+        quoteId: fx.quote?.quoteId || null,
       });
 
       // Remove purchased items from the cart. Buy Now never came from the cart,
@@ -250,7 +287,7 @@ function CheckoutContent() {
                     )}
                     <div className="mt-1 flex items-center justify-between text-sm">
                       <span className="text-ink-500">
-                        {money(l.price)} x {l.quantity}
+                        {fxLine(l) ? `≈ ${money(fxLine(l).buyerTotal / l.quantity)}` : estimating ? (conv(l, 1) == null ? "…" : `≈ ${money(conv(l, l.price))}`) : money(l.price)} x {l.quantity}
                         {l.onWholesale && (
                           <>
                             {" "}
@@ -261,7 +298,7 @@ function CheckoutContent() {
                           </>
                         )}
                       </span>
-                      <span className="font-bold text-ink-900">{money(l.price * l.quantity)}</span>
+                      <span className="font-bold text-ink-900">{fxLine(l) ? money(fxLine(l).buyerTotal) : estimating ? (conv(l, 1) == null ? "…" : `≈ ${money(conv(l, l.price * l.quantity))}`) : money(l.price * l.quantity)}</span>
                     </div>
                   </div>
                 </li>
@@ -271,7 +308,7 @@ function CheckoutContent() {
         </div>
 
         {/* Coupon */}
-        {singleVendor ? (
+        {needsQuote ? null : singleVendor ? (
           <div className="card p-5">
             <h2 className="mb-3 text-base font-bold text-ink-900">Have a coupon?</h2>
             <div className="flex gap-2">
@@ -312,7 +349,7 @@ function CheckoutContent() {
           <div className="space-y-2 text-sm text-ink-600">
             <div className="flex justify-between">
               <span>Subtotal ({lines.length} items)</span>
-              <span className="font-semibold text-ink-900">{money(totalPrice)}</span>
+              <span className="font-semibold text-ink-900">{pm(totalPrice)}</span>
             </div>
             {discount > 0 && (
               <div className="flex justify-between">
@@ -322,9 +359,9 @@ function CheckoutContent() {
             )}
             <div className="flex justify-between">
               <span>Platform Fee</span>
-              <span className="font-semibold text-ink-900">{money(purchaseFee)}</span>
+              <span className="font-semibold text-ink-900">{pm(purchaseFee)}</span>
             </div>
-            {quote.mode === "vendor" && (
+            {(quote.mode === "vendor" || fx.quote) && (
               <div className="flex justify-between">
                 <span>Delivery</span>
                 <span className="font-semibold text-ink-900">Arranged with vendor</span>
@@ -350,7 +387,7 @@ function CheckoutContent() {
           )}
           <div className="mt-4 flex items-center justify-between border-t border-ink-100 pt-4">
             <span className="text-base font-bold text-ink-900">Total Amount</span>
-            <span className="text-xl font-extrabold text-brand-600">{money(grandTotal)}</span>
+            <span className="text-xl font-extrabold text-brand-600">{pm(grandTotal)}</span>
           </div>
         </div>
 
@@ -394,11 +431,36 @@ function CheckoutContent() {
           </p>
         )}
 
-        {hasForeignCurrency && (
-          <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-            Some items are priced in a currency other than {WALLET_CURRENCY} and can't be bought
-            with your wallet yet.
-          </p>
+        {(needsQuote || !!fx.error) && (
+          <div className="card p-5 text-sm">
+            <h2 className="mb-1 text-base font-bold text-ink-900">International order</h2>
+            {fx.loading && <p className="text-ink-500">Getting your locked price…</p>}
+            {!!fx.error && !fx.loading && (
+              <p className="font-semibold text-rose-600">
+                {fx.error}{" "}
+                <button onClick={fx.refresh} className="font-bold text-brand-600 underline">Try again</button>
+              </p>
+            )}
+            {!!fx.quote && !fx.expired && (
+              <p className="text-ink-500">
+                Price locked for {Math.floor(fx.secondsLeft / 60)}:{String(fx.secondsLeft % 60).padStart(2, "0")}. It
+                includes a {fx.quote.marginPct}% currency conversion fee.
+              </p>
+            )}
+            {!!fx.quote && fx.expired && (
+              <p className="font-semibold text-rose-600">
+                Your price quote expired.{" "}
+                <button onClick={fx.refresh} className="font-bold text-brand-600 underline">Get a new price</button>
+              </p>
+            )}
+            <p className="mt-2 text-xs text-ink-500">
+              Import duties and taxes aren't included. You and the vendor arrange who pays them, so message the
+              vendor before they ship.
+            </p>
+            {platformOnlyBlock && (
+              <p className="mt-2 text-xs font-semibold text-rose-600">International orders can't use platform delivery yet.</p>
+            )}
+          </div>
         )}
 
         {hasInvalid && (
@@ -426,7 +488,7 @@ function CheckoutContent() {
         >
           {placing
             ? t.processing
-            : `${lines.length > 1 ? "Place Bulk Order" : "Place Order"} · ${money(grandTotal)}`}
+            : `${lines.length > 1 ? "Place Bulk Order" : "Place Order"} · ${pm(grandTotal)}`}
         </button>
       </div>
 

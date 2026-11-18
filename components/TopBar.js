@@ -113,7 +113,7 @@ export default function TopBar() {
             className="flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-sm font-bold text-brand-700"
           >
             <WalletIcon size={16} />
-            {formatPrice(balance, "GHS")}
+            {formatPrice(balance, user?.currency || "GHS")}
           </Link>
 
           {/* Notifications bell */}

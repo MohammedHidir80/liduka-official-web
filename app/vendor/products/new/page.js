@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addDoc, updateDoc, getDoc, getDocs, collection, doc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContext";
 import { uploadToR2 } from "@/lib/r2";
 import VariantEditor from "@/components/VariantEditor";
 import { buildVariants, emptyVariant, validateVariants } from "@/lib/vendorProducts";
@@ -16,7 +17,8 @@ const DELIVERY_CLASSES = [
 ];
 
 const MAX_IMG = 10 * 1024 * 1024;
-const MAX_VIDEO = 60 * 1024 * 1024;
+const MAX_VIDEO = 150 * 1024 * 1024; // phone videos of 10–60 s are often 60MB+
+const VIDEO_EXT = /\.(mp4|mov|m4v|webm|3gp|mkv)$/i;
 
 const videoDuration = (file) =>
   new Promise((resolve, reject) => {
@@ -29,6 +31,8 @@ const videoDuration = (file) =>
 
 export default function AddProductPage() {
   const router = useRouter();
+  const { user: me } = useAuth();
+  const cur = me?.currency || "";
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [description, setDescription] = useState("");
@@ -45,6 +49,7 @@ export default function AddProductPage() {
   const [progress, setProgress] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [videoError, setVideoError] = useState("");
 
   useEffect(() => {
     getDocs(collection(db, "categories")).then((snap) =>
@@ -64,15 +69,16 @@ export default function AddProductPage() {
 
   const pickVideo = async (file) => {
     if (!file) return;
-    if (!file.type.startsWith("video/")) return setError("Please choose a video file.");
-    if (file.size > MAX_VIDEO) return setError("Video must be under 60MB.");
+    setVideoError("");
+    // phones often give an empty file type, so the file name counts too
+    if (!file.type.startsWith("video/") && !VIDEO_EXT.test(file.name || "")) return setVideoError("Please choose a video file.");
+    if (file.size > MAX_VIDEO) return setVideoError("Video must be under 150MB.");
     try {
       const d = await videoDuration(file);
-      if (d < 10 || d > 60) return setError("Video must be between 10 and 60 seconds.");
-    } catch (e) {
-      return setError(e.message);
+      if (d < 10 || d > 60) return setVideoError("Video must be between 10 and 60 seconds.");
+    } catch {
+      // some phone formats (HEVC) can't be read by the browser: accept it, the length can't be checked here
     }
-    setError("");
     setVideo(file);
   };
 
@@ -103,14 +109,18 @@ export default function AddProductPage() {
       const userSnap = await getDoc(doc(db, "users", user.uid));
       if (!userSnap.exists()) throw new Error("User profile not found.");
       const u = userSnap.data();
-      const currency = u.currency || "GHS";
-      const symbol = u.symbol || "₵";
+      // Currency and country come from the account (set by the server from the IP), never guessed.
+      if (!u.currency || !u.symbol || !u.countryCode)
+        throw new Error("Your account's country isn't set up yet. Please log out and log in again, or contact support.");
+      const currency = u.currency;
+      const symbol = u.symbol;
 
       const productRef = await addDoc(collection(db, "products"), {
         name: name.trim(),
         price: priceNum,
         currency,
         symbol,
+        shipsInternationally: !!u.shipsInternationally,
         description: description.trim(),
         subcategory: subcategories[0],
         subcategories,
@@ -176,7 +186,7 @@ export default function AddProductPage() {
       <section className="card space-y-3 p-4">
         <h2 className="font-semibold">Basic info</h2>
         <input className="input" placeholder="Product name *" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="input" type="number" min="0" step="0.01" placeholder="Price (GHS) *" value={price}
+        <input className="input" type="number" min="0" step="0.01" placeholder={`Price (${cur}) *`} value={price}
           onChange={(e) => setPrice(e.target.value)} />
         <textarea className="input min-h-28" placeholder="Description" value={description}
           onChange={(e) => setDescription(e.target.value)} />
@@ -198,8 +208,9 @@ export default function AddProductPage() {
         <label className="flex cursor-pointer items-center justify-between rounded-lg border-2 border-dashed p-3 text-sm text-ink-500">
           <span>{video ? video.name : "+ Video (10–60 seconds, optional)"}</span>
           {video && <button type="button" onClick={(ev) => { ev.preventDefault(); setVideo(null); }} className="text-red-500">Remove</button>}
-          <input type="file" accept="video/*" hidden onChange={(e) => pickVideo(e.target.files?.[0])} />
+          <input type="file" accept="video/*" className="sr-only" onChange={(e) => { pickVideo(e.target.files?.[0]); e.target.value = ""; }} />
         </label>
+        {videoError && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{videoError}</p>}
       </section>
 
       <section className="card space-y-3 p-4">
@@ -218,7 +229,7 @@ export default function AddProductPage() {
             <div className="grid grid-cols-2 gap-3">
               <input className="input" type="number" min="2" step="1" placeholder="Minimum quantity (e.g. 10)" value={wsMin}
                 onChange={(e) => setWsMin(e.target.value)} />
-              <input className="input" type="number" min="0" step="0.01" placeholder="Price per item (GHS)" value={wsPrice}
+              <input className="input" type="number" min="0" step="0.01" placeholder={`Price per item (${cur})`} value={wsPrice}
                 onChange={(e) => setWsPrice(e.target.value)} />
             </div>
             {parseInt(wsMin, 10) >= 2 && parseFloat(wsPrice) > 0 && parseFloat(price) > 0 && (

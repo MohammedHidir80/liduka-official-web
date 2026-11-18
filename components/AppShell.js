@@ -18,7 +18,8 @@ const AUTH_ROUTES = [
 ];
 
 // Readable by anyone, logged in or not, with no shell and no redirects
-const PUBLIC_ROUTES = ["/terms"];
+
+const PUBLIC_ROUTES = ["/terms", "/auth/action"];
 
 // Logged-in pages both roles may open (adjust to your routes)
 const SHARED_ROUTES = ["/customer-service", "/notifications"];
