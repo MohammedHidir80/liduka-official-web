@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import TopBar from "./TopBar";
 import BottomNav from "./BottomNav";
 import Logo from "./logo";
+import Footer from "./Footer";
 
 // Login-type pages: logged-in users get sent away from these
 const AUTH_ROUTES = [
@@ -113,6 +114,7 @@ export default function AppShell({ children }) {
     <div className="flex min-h-dvh flex-col">
       <TopBar />
       <main className="flex-1 pb-24 md:pb-10">{children}</main>
+       <Footer />
       <BottomNav />
     </div>
   );

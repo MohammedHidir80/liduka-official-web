@@ -12,6 +12,14 @@ const STATUSES = [
   { value: "out-of-stock", label: "Out of stock" },
 ];
 
+// Delivery size decides the delivery fee. Same keys as the add page and the mobile app.
+const DELIVERY_CLASSES = [
+  { key: "small", label: "Small", hint: "Phone, shoes, clothes · under 2 kg" },
+  { key: "medium", label: "Medium", hint: "Blender, small TV, box of goods · 2–10 kg" },
+  { key: "large", label: "Large", hint: "Microwave, big TV, mattress · 10–30 kg" },
+  { key: "heavy", label: "Heavy", hint: "Fridge, sofa, heavy items · over 30 kg" },
+];
+
 export default function EditProductPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -21,6 +29,10 @@ export default function EditProductPage() {
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("active");
   const [variants, setVariants] = useState([]);
+  const [wsOn, setWsOn] = useState(false);
+  const [wsMin, setWsMin] = useState("");
+  const [wsPrice, setWsPrice] = useState("");
+  const [deliveryClass, setDeliveryClass] = useState("small");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -38,6 +50,12 @@ export default function EditProductPage() {
         setName(p.name || "");
         setPrice(String(p.price ?? ""));
         setDescription(p.description || "");
+        if (p.wholesale?.minQty) {
+          setWsOn(true);
+          setWsMin(String(p.wholesale.minQty));
+          setWsPrice(String(p.wholesale.price ?? ""));
+        }
+        setDeliveryClass(p.deliveryClass || "small");
         setStatus(p.status === "uploading" ? "active" : p.status || "active");
         setVariants(
           (p.variants?.length ? p.variants : [{ size: "", color: "", stock: p.stock ?? 0 }]).map((v) => ({
@@ -60,6 +78,11 @@ export default function EditProductPage() {
     setError("");
     const priceNum = Number(price);
     if (!name.trim() || !priceNum || priceNum <= 0) return setError("Name and a valid price are required.");
+    if (wsOn) {
+      const q = parseInt(wsMin, 10), wp = parseFloat(wsPrice);
+      if (!(q >= 2)) return setError("Wholesale minimum quantity must be 2 or more.");
+      if (!(wp > 0) || wp >= priceNum) return setError("The wholesale price must be lower than the normal price.");
+    }
     const vErr = validateVariants(variants);
     if (vErr) return setError(vErr);
 
@@ -69,6 +92,8 @@ export default function EditProductPage() {
         name: name.trim(),
         price: priceNum,
         description: description.trim(),
+        wholesale: wsOn ? { minQty: parseInt(wsMin, 10), price: parseFloat(wsPrice) } : null,
+        deliveryClass,
         status,
         ...buildVariants(variants),
         updatedAt: serverTimestamp(),
@@ -98,10 +123,47 @@ export default function EditProductPage() {
 
       <section className="card space-y-3 p-4">
         <input className="input" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="input" type="number" min="0" step="0.01" placeholder={`Price (${product.currency || "GHS"})`}
+        <input className="input" type="number" min="0" step="0.01" placeholder={`Price (${product.currency || ""})`}
           value={price} onChange={(e) => setPrice(e.target.value)} />
         <textarea className="input min-h-28" placeholder="Description" value={description}
           onChange={(e) => setDescription(e.target.value)} />
+      </section>
+
+      <section className="card space-y-3 p-4">
+        <h2 className="font-semibold">Wholesale (optional)</h2>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" checked={wsOn} onChange={(e) => setWsOn(e.target.checked)} />
+          I also sell wholesale. Buyers get a lower price per item when they buy enough.
+        </label>
+        {wsOn && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <input className="input" type="number" min="2" step="1" placeholder="Minimum quantity (e.g. 10)" value={wsMin}
+                onChange={(e) => setWsMin(e.target.value)} />
+              <input className="input" type="number" min="0" step="0.01" placeholder={`Price per item (${product.currency || ""})`} value={wsPrice}
+                onChange={(e) => setWsPrice(e.target.value)} />
+            </div>
+            {parseInt(wsMin, 10) >= 2 && parseFloat(wsPrice) > 0 && parseFloat(price) > 0 && (
+              <p className="text-sm text-ink-500">
+                Example: {wsMin} items cost {(parseInt(wsMin, 10) * parseFloat(wsPrice)).toFixed(2)} instead of {(parseInt(wsMin, 10) * parseFloat(price)).toFixed(2)}.
+              </p>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className="card space-y-3 p-4">
+        <h2 className="font-semibold">Delivery size</h2>
+        <p className="text-sm text-ink-500">Pick the size of one item as packed. The delivery fee depends on it.</p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {DELIVERY_CLASSES.map((c) => (
+            <button type="button" key={c.key} onClick={() => setDeliveryClass(c.key)}
+              className={`rounded-lg border-2 p-3 text-left ${deliveryClass === c.key ? "border-brand-600 bg-brand-50" : "border-gray-200"}`}>
+              <span className="block font-semibold">{c.label}</span>
+              <span className="block text-xs text-ink-500">{c.hint}</span>
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="card space-y-3 p-4">
