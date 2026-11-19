@@ -145,7 +145,7 @@ export default function ProfilePage() {
       title: "Support",
       items: [
         { id: "help", Icon: HeadsetIcon, label: t.customerService, onPress: () => router.push("/customer-service") },
-        { id: "about", Icon: InfoIcon, label: t.about, onPress: () => alert("Liduka Marketplace · v1.0 (Demo)") },
+        { id: "about", Icon: InfoIcon, label: t.about, onPress: () => alert("Liduka Marketplace · v1.0 ") },
       ],
     },
   ];

@@ -12,6 +12,7 @@ import useLocationFeed from "@/hooks/useLocationFeed";
 import useQuickAdd from "@/hooks/useQuickAdd";
 import { HOME_CATEGORIES } from "@/data/categories";
 import { locationTier, normRegion, titleCase } from "@/utils/location";
+import { welcomeFor } from "@/utils/greetings";
 import ProductCard from "@/components/ProductCard";
 import VariantModal from "@/components/VariantModal";
 import { SearchIcon, ChevronRightIcon, MapPinIcon } from "@/components/icons";
@@ -57,6 +58,10 @@ export default function HomePage() {
 
   const seeMore = t.seeMore || "See more";
 
+  // Welcome in the language of the account's country (Ghana, Nigeria, Kenya, South Africa); "Welcome" elsewhere
+  const hello = welcomeFor(user?.countryCode, t.welcome || "Welcome");
+  const firstName = user?.name?.split(" ")[0] || "";
+
   const locationLabel = [user?.city, titleCase(normRegion(user?.region))]
     .filter(Boolean)
     .join(", ");
@@ -101,7 +106,8 @@ export default function HomePage() {
           </p>
         )}
         <h1 className="mt-1 text-xl font-extrabold tracking-tight text-ink-900">
-          Hi {user?.name?.split(" ")[0]}
+          {hello.word}
+          {firstName && `, ${firstName}`}
         </h1>
 
         <form onSubmit={handleSearchSubmit} className="relative mt-4 block">

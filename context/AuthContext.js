@@ -162,7 +162,7 @@ export function AuthProvider({ children }) {
     forceLogin: refreshUser, // old name, kept so nothing crashes
     logout,
     updateUser,
-    accounts: [], // demo accounts are gone; kept so old code doesn't crash
+    accounts: [], 
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

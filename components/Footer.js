@@ -64,7 +64,6 @@ export default function Footer() {
 
         <div className="mt-8 flex flex-col gap-2 border-t border-white/10 pt-5 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Liduka. All rights reserved.</p>
-          <p>Prices in another currency are estimates. You see the final price before you pay.</p>
         </div>
       </div>
     </footer>
