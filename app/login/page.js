@@ -15,6 +15,7 @@ import {
 } from "@/components/icons";
 import Logo from "@/components/logo";
 import DetectedCountry from "@/components/DetectedCountry";
+import AuthHero from "@/components/AuthHero";
 
 const DIAL_CODES = [
   { code: "+233", label: "GH +233" },
@@ -25,6 +26,43 @@ const DIAL_CODES = [
   { code: "+27", label: "ZA +27" },
   { code: "+44", label: "GB +44" },
   { code: "+1", label: "US +1" },
+];
+
+// Passwords people use everywhere. Checked on the lower-cased password.
+const COMMON = [
+  "password", "password1", "password123", "12345678", "123456789", "1234567890", "qwerty123", "qwertyuiop",
+  "iloveyou", "welcome1", "welcome123", "admin123", "letmein123", "abc12345", "liduka", "liduka123",
+  "ghana123", "nigeria123", "kenya123", "football1", "11111111", "00000000", "asdfghjkl",
+];
+
+// Required rules block signup; "special" and length 12+ only raise the strength.
+function checkPassword(pw, { email = "", name = "" } = {}) {
+  const lower = pw.toLowerCase();
+  const local = email.split("@")[0].toLowerCase();
+  const first = name.trim().split(/\s+/)[0]?.toLowerCase() || "";
+  const rules = [
+    { id: "len", label: "At least 8 characters", ok: pw.length >= 8 },
+    { id: "lower", label: "A lowercase letter", ok: /[a-z]/.test(pw) },
+    { id: "upper", label: "An uppercase letter", ok: /[A-Z]/.test(pw) },
+    { id: "num", label: "A number", ok: /\d/.test(pw) },
+  ];
+  const common = COMMON.some((c) => lower === c || (c.length >= 6 && lower.includes(c)));
+  const personal = (local.length >= 4 && lower.includes(local)) || (first.length >= 4 && lower.includes(first));
+  const requiredOk = rules.every((r) => r.ok) && !common && !personal;
+  const special = /[^A-Za-z0-9]/.test(pw);
+  let score = rules.filter((r) => r.ok).length - 1; // 0..3
+  if (special) score += 1;
+  if (pw.length >= 12) score += 1;
+  if (common || personal) score = 0;
+  const level = !pw ? 0 : !requiredOk ? Math.min(score, 1) : score >= 4 ? 4 : score >= 3 ? 3 : 2;
+  return { rules, common, personal, requiredOk, level };
+}
+const STRENGTH = [
+  null,
+  { label: "Weak", bar: "bg-rose-500", text: "text-rose-600" },
+  { label: "Fair", bar: "bg-amber-500", text: "text-amber-600" },
+  { label: "Good", bar: "bg-lime-500", text: "text-lime-600" },
+  { label: "Strong", bar: "bg-emerald-500", text: "text-emerald-600" },
 ];
 
 export default function LoginPage() {
@@ -57,6 +95,8 @@ export default function LoginPage() {
     setNotice({ type: "error", title, message });
   };
 
+  const pwCheck = checkPassword(password, { email, name: fullName });
+
   const handleAuth = async (e) => {
     e.preventDefault();
     setNotice(null);
@@ -67,6 +107,15 @@ export default function LoginPage() {
       if (!fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim())
         return fail("Missing Information", "Please fill out all fields.");
       if (password !== confirmPassword) return fail("Password Mismatch", "Passwords do not match.");
+      if (!pwCheck.requiredOk)
+        return fail(
+          "Choose a stronger password",
+          pwCheck.common
+            ? "That password is too common. Pick something only you would know."
+            : pwCheck.personal
+            ? "Your password shouldn't contain your name or email."
+            : "Use at least 8 characters with a lowercase letter, an uppercase letter and a number."
+        );
       if (geo !== "ok") return fail("Country", geo === "unsupported" ? "Liduka isn't available in your country yet." : "We need to confirm your country first. Please wait or tap Retry.");
     } else if (!email.trim() || !password.trim()) {
       return fail("Missing Information", "Please enter your email and password.");
@@ -116,6 +165,9 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.log("Auth Error:", err);
+      if (err?.code === "auth/password-does-not-meet-requirements") {
+        return fail("Choose a stronger password", "Use at least 8 characters with a lowercase letter, an uppercase letter and a number.");
+      }
       const { title, message } = getAuthError(err);
       fail(title, message);
     } finally {
@@ -129,20 +181,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center bg-ink-50 px-4 py-12">
-      <div className="w-full max-w-md">
+    <div className="min-h-dvh bg-ink-50">
+      <AuthHero tagline="Buy and sell across Africa." sub="Shop from vendors in Ghana, Nigeria, Kenya and South Africa. Pay from your wallet in your own currency." />
 
-        <div className="mb-8 flex flex-col items-center text-center">
-          <Logo size="text-4xl" />
-        </div>
-
+      <div className="relative z-10 mx-auto -mt-12 w-full max-w-md px-4 pb-12">
         <div className="rounded-3xl bg-white p-6 shadow-card sm:p-8">
-          <h2 className="mb-1 text-2xl font-extrabold text-ink-900">
-            {isSignUp ? t.authTitleUp : t.authTitleIn}
-          </h2>
-          <p className="mb-6 text-sm text-ink-500">
-            {isSignUp ? t.authSubUp : t.authSubIn}
-          </p>
+              <h2 className="mb-1 text-2xl font-extrabold text-ink-900">
+                {isSignUp ? t.authTitleUp : t.authTitleIn}
+              </h2>
+              <p className="mb-6 text-sm text-ink-500">
+                {isSignUp ? t.authSubUp : t.authSubIn}
+              </p>
 
           {notice && (
             <div
@@ -195,6 +244,32 @@ export default function LoginPage() {
               </button>
             </div>
 
+            {/* Password strength (sign up) */}
+            {isSignUp && password && (
+              <div className="-mt-1">
+                <div className="flex gap-1.5" aria-hidden="true">
+                  {[1, 2, 3, 4].map((n) => (
+                    <span key={n} className={`h-1.5 flex-1 rounded-full ${pwCheck.level >= n ? STRENGTH[pwCheck.level].bar : "bg-ink-100"}`} />
+                  ))}
+                </div>
+                <p className={`mt-1 text-xs font-bold ${STRENGTH[pwCheck.level]?.text || "text-ink-400"}`}>
+                  {STRENGTH[pwCheck.level]?.label || ""}
+                </p>
+                <ul className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                  {pwCheck.rules.map((r) => (
+                    <li key={r.id} className={r.ok ? "text-emerald-600" : "text-ink-400"}>
+                      {r.ok ? "✓" : "○"} {r.label}
+                    </li>
+                  ))}
+                </ul>
+                {(pwCheck.common || pwCheck.personal) && (
+                  <p className="mt-1 text-xs font-semibold text-rose-600">
+                    {pwCheck.common ? "That password is too common." : "Avoid your name or email in your password."}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Confirm Password */}
             {isSignUp && (
               <div className="relative">
@@ -245,7 +320,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Vendor link */}
+{/* Vendor link */}
         <div className="mt-8 text-center text-sm">
           <span className="text-ink-500">{t.vendorPrompt} </span>
           <Link href="/vendor/login" className="font-bold text-brand-600 hover:underline">

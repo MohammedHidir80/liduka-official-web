@@ -12,13 +12,50 @@ import { findInvite, claimInvite } from "@/lib/vendorInvites";
 import { getGeoCurrency } from "@/utils/getGeoCurrency";
 import { getUserLocation } from "@/utils/getUserLocation";
 import { normalizePhone, isValidPhone } from "@/utils/phone";
-import Logo from "@/components/logo";
+import AuthHero from "@/components/AuthHero";
 import DetectedCountry from "@/components/DetectedCountry";
 import {
   MailIcon, LockIcon, StoreIcon, KeyIcon, EyeIcon, EyeOffIcon,
 } from "@/components/icons";
 
 const SUPPORT_EMAIL = "support@liduka.com";
+
+// Passwords people use everywhere. Checked on the lower-cased password.
+const COMMON = [
+  "password", "password1", "password123", "12345678", "123456789", "1234567890", "qwerty123", "qwertyuiop",
+  "iloveyou", "welcome1", "welcome123", "admin123", "letmein123", "abc12345", "liduka", "liduka123",
+  "ghana123", "nigeria123", "kenya123", "football1", "11111111", "00000000", "asdfghjkl",
+];
+
+// Required rules block signup; "special" and length 12+ only raise the strength.
+function checkPassword(pw, { email = "", name = "" } = {}) {
+  const lower = pw.toLowerCase();
+  const local = email.split("@")[0].toLowerCase();
+  const first = name.trim().split(/\s+/)[0]?.toLowerCase() || "";
+  const rules = [
+    { id: "len", label: "At least 8 characters", ok: pw.length >= 8 },
+    { id: "lower", label: "A lowercase letter", ok: /[a-z]/.test(pw) },
+    { id: "upper", label: "An uppercase letter", ok: /[A-Z]/.test(pw) },
+    { id: "num", label: "A number", ok: /\d/.test(pw) },
+  ];
+  const common = COMMON.some((c) => lower === c || (c.length >= 6 && lower.includes(c)));
+  const personal = (local.length >= 4 && lower.includes(local)) || (first.length >= 4 && lower.includes(first));
+  const requiredOk = rules.every((r) => r.ok) && !common && !personal;
+  const special = /[^A-Za-z0-9]/.test(pw);
+  let score = rules.filter((r) => r.ok).length - 1; // 0..3
+  if (special) score += 1;
+  if (pw.length >= 12) score += 1;
+  if (common || personal) score = 0;
+  const level = !pw ? 0 : !requiredOk ? Math.min(score, 1) : score >= 4 ? 4 : score >= 3 ? 3 : 2;
+  return { rules, common, personal, requiredOk, level };
+}
+const STRENGTH = [
+  null,
+  { label: "Weak", bar: "bg-rose-500", text: "text-rose-600" },
+  { label: "Fair", bar: "bg-amber-500", text: "text-amber-600" },
+  { label: "Good", bar: "bg-lime-500", text: "text-lime-600" },
+  { label: "Strong", bar: "bg-emerald-500", text: "text-emerald-600" },
+];
 
 export default function VendorAuthPage() {
   const router = useRouter();
@@ -47,6 +84,8 @@ export default function VendorAuthPage() {
     setNotice(null);
   };
 
+  const pwCheck = checkPassword(password, { email, name: fullName });
+
   const handleAuth = async (e) => {
     e.preventDefault();
     setNotice(null);
@@ -58,6 +97,15 @@ export default function VendorAuthPage() {
       if (!email.trim() || !password.trim() || !fullName.trim() || !confirmPassword.trim())
         return fail("Missing Info", "Please fill all fields.");
       if (password !== confirmPassword) return fail("Password Mismatch", "Passwords don't match.");
+      if (!pwCheck.requiredOk)
+        return fail(
+          "Choose a stronger password",
+          pwCheck.common
+            ? "That password is too common. Pick something only you would know."
+            : pwCheck.personal
+            ? "Your password shouldn't contain your name or email."
+            : "Use at least 8 characters with a lowercase letter, an uppercase letter and a number."
+        );
       if (!inviteCode.trim()) return fail("Invite Code Required", "Please enter your invite code.");
       if (geo !== "ok") return fail("Country", geo === "unsupported" ? "Liduka isn't available in your country yet." : "We need to confirm your country first. Please wait or tap Retry.");
       if (phone.trim() && !isValidPhone(phoneNorm))
@@ -117,6 +165,9 @@ export default function VendorAuthPage() {
       }
     } catch (err) {
       console.log("Vendor auth error:", err);
+      if (err?.code === "auth/password-does-not-meet-requirements") {
+        return fail("Choose a stronger password", "Use at least 8 characters with a lowercase letter, an uppercase letter and a number.");
+      }
       const { title, message } = getAuthError(err);
       fail(
         title,
@@ -134,47 +185,19 @@ export default function VendorAuthPage() {
   };
 
   return (
-    <div className="flex min-h-dvh bg-ink-50">
-      {/* LEFT: branding (desktop only) */}
-      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-blue-800 p-12 text-white lg:flex">
-        <div className="relative z-10">
-          <Link href="/">
-            <Logo size="text-3xl text-white" />
-          </Link>
-        </div>
+    <div className="min-h-dvh bg-ink-50">
+      <AuthHero
+        tagline="Grow your business with Liduka."
+        sub="Join vendors selling to customers across Africa. Manage your products, track orders, and get paid securely."
+      />
 
-        <div className="relative z-10 max-w-md">
-          <h1 className="mb-4 text-4xl font-extrabold tracking-tight">
-            Grow your business with Liduka.
-          </h1>
-          <p className="text-lg leading-relaxed text-brand-100">
-            Join vendors selling to customers across Africa. Manage your products, track orders, and
-            get paid securely.
-          </p>
-        </div>
-
-        <div className="relative z-10 flex items-center gap-4 text-sm font-semibold text-brand-200">
-          <span>© {new Date().getFullYear()} Liduka Marketplace</span>
-        </div>
-
-        <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-blue-400/20 blur-3xl" />
-      </div>
-
-      {/* RIGHT: form */}
-      <div className="flex w-full flex-col justify-center px-4 py-12 sm:px-12 lg:w-1/2 lg:px-24">
-        <div className="mx-auto w-full max-w-md">
-          <div className="mb-10 flex justify-center lg:hidden">
-            <Link href="/">
-              <Logo size="text-4xl" />
-            </Link>
-          </div>
-
-          <div className="mb-8 text-center lg:text-left">
-            <h2 className="text-3xl font-extrabold text-ink-900">
+      <div className="relative z-10 mx-auto -mt-12 w-full max-w-md px-4 pb-12">
+        <div className="rounded-3xl bg-white p-6 shadow-card sm:p-8">
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl font-extrabold text-ink-900">
               {isSignUp ? t.vendorRegister || "Vendor Registration" : t.vendorLogin || "Vendor Login"}
             </h2>
-            <p className="mt-2 text-sm text-ink-500">
+            <p className="mt-1 text-sm text-ink-500">
               {isSignUp
                 ? t.vendorSubRegister || "Start selling on our marketplace"
                 : t.vendorSubLogin || "Welcome back to your dashboard"}
@@ -338,6 +361,31 @@ export default function VendorAuthPage() {
               </div>
             </div>
 
+            {isSignUp && password && (
+              <div className="-mt-2">
+                <div className="flex gap-1.5" aria-hidden="true">
+                  {[1, 2, 3, 4].map((n) => (
+                    <span key={n} className={`h-1.5 flex-1 rounded-full ${pwCheck.level >= n ? STRENGTH[pwCheck.level].bar : "bg-ink-100"}`} />
+                  ))}
+                </div>
+                <p className={`mt-1 text-xs font-bold ${STRENGTH[pwCheck.level]?.text || "text-ink-400"}`}>
+                  {STRENGTH[pwCheck.level]?.label || ""}
+                </p>
+                <ul className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                  {pwCheck.rules.map((r) => (
+                    <li key={r.id} className={r.ok ? "text-emerald-600" : "text-ink-400"}>
+                      {r.ok ? "✓" : "○"} {r.label}
+                    </li>
+                  ))}
+                </ul>
+                {(pwCheck.common || pwCheck.personal) && (
+                  <p className="mt-1 text-xs font-semibold text-rose-600">
+                    {pwCheck.common ? "That password is too common." : "Avoid your name or email in your password."}
+                  </p>
+                )}
+              </div>
+            )}
+
             {!isSignUp && (
               <div className="-mt-2 flex justify-end">
                 <Link
@@ -396,12 +444,13 @@ export default function VendorAuthPage() {
             </button>
           </form>
 
-          <div className="mt-8 text-center text-sm">
-            <span className="text-ink-500">{t.wantToShop || "Want to shop instead?"} </span>
-            <Link href="/login" className="font-bold text-brand-600 hover:underline">
-              {t.loginAsBuyer || "Login as Buyer"}
-            </Link>
-          </div>
+        </div>
+
+        <div className="mt-8 text-center text-sm">
+          <span className="text-ink-500">{t.wantToShop || "Want to shop instead?"} </span>
+          <Link href="/login" className="font-bold text-brand-600 hover:underline">
+            {t.loginAsBuyer || "Login as Buyer"}
+          </Link>
         </div>
       </div>
     </div>
