@@ -60,24 +60,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {/* Notifications */}
-      <h2 className="mb-3 ml-1 text-xs font-bold uppercase tracking-wider text-ink-400">
-        Notifications
-      </h2>
-      <div className="mb-8 rounded-2xl border border-ink-100 bg-white overflow-hidden shadow-sm">
-        <button
-          onClick={() => alert("Notification preferences are demo-only.")}
-          className="flex w-full items-center justify-between p-4 transition hover:bg-ink-50"
-        >
-          <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-50 text-brand-600">
-              <BellIcon size={18} />
-            </span>
-            <span className="text-sm font-semibold text-ink-900">{t.notifications}</span>
-          </div>
-        </button>
-      </div>
-
+     
       {/* About */}
       <h2 className="mb-3 ml-1 text-xs font-bold uppercase tracking-wider text-ink-400">
         {t.about}
@@ -85,7 +68,7 @@ export default function SettingsPage() {
       <div className="mb-8 rounded-2xl border border-ink-100 bg-white overflow-hidden shadow-sm">
         <div className="flex items-center justify-between p-4 border-b border-ink-50">
           <span className="text-sm text-ink-500">{t.version}</span>
-          <span className="text-sm font-semibold text-ink-900">1.0.0 (Demo)</span>
+          <span className="text-sm font-semibold text-ink-900">1.0.0 </span>
         </div>
         <div className="flex items-center justify-between p-4">
           <span className="text-sm text-ink-500">{t.marketplace}</span>

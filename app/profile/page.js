@@ -206,26 +206,7 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Wallet card */}
-      <button
-        onClick={() => router.push("/wallet")}
-        className="relative mb-8 w-full overflow-hidden rounded-3xl bg-brand-600 p-5 text-left text-white shadow-card transition hover:bg-brand-700"
-      >
-        <div className="relative z-10">
-          <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-brand-100">
-            <WalletIcon size={16} /> Wallet Balance
-          </p>
-          <p className="text-3xl font-extrabold tracking-tight">
-            {walletReady ? formatPrice(balance, "GHS") : "---"}
-          </p>
-          <p className="mt-3 flex items-center gap-1 text-xs font-medium text-brand-200">
-            Tap to view details <ChevronRightIcon size={14} />
-          </p>
-        </div>
-        <div className="absolute -right-8 -top-8 text-brand-500/30">
-          <WalletIcon size={140} strokeWidth={1} />
-        </div>
-      </button>
+      
 
       {/* Menu */}
       {menuSections.map((section) => (
