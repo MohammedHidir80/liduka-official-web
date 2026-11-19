@@ -8,5 +8,5 @@ const WELCOME = {
 };
 
 export function welcomeFor(countryCode, fallback = "Welcome") {
-  return WELCOME[String(countryCode || "").toUpperCase()] || { word: fallback };
+  return WELCOME[String(countryCode || "").toUpperCase()] || { word: fallback, lang: "" };
 }
