@@ -5,7 +5,6 @@ import { useWallet } from "@/context/WalletContext";
 import { useAuth } from "@/context/AuthContext";
 import useTransactions from "@/hooks/useTransactions";
 import { startDeposit, verifyDeposit, openPaystack } from "@/lib/deposit";
-import { calculateDepositFee } from "@/utils/calculateDepositFee";
 import { formatPrice } from "@/utils/currency";
 import { WalletIcon, PlusIcon, ArrowDownLeftIcon, CreditCardIcon, XIcon } from "@/components/icons";
 
@@ -54,7 +53,6 @@ export default function WalletPage() {
 
   const value = parseFloat(amount);
   const validAmount = Number.isFinite(value) && value >= MIN_DEPOSIT && value <= MAX_DEPOSIT;
-  const fees = validAmount ? calculateDepositFee(value, CURRENCY) : null;
   const busy = phase !== "idle";
 
   const handleDeposit = async (e) => {
@@ -99,7 +97,7 @@ export default function WalletPage() {
   };
 
   const buttonLabel = {
-    idle: validAmount ? `Deposit ${money(fees.grossAmount)}` : "Deposit Now",
+    idle: validAmount ? `Deposit ${money(value)}` : "Deposit Now",
     starting: "Preparing payment...",
     paying: "Waiting for payment...",
     verifying: "Confirming payment...",
@@ -172,22 +170,9 @@ export default function WalletPage() {
             </div>
           </div>
 
-          {fees && (
-            <div className="space-y-1.5 rounded-xl bg-ink-50 p-4 text-sm">
-              <div className="flex justify-between text-ink-600">
-                <span>Amount</span>
-                <span className="font-semibold text-ink-900">{money(value)}</span>
-              </div>
-              <div className="flex justify-between text-ink-600">
-                <span>Processing Fee</span>
-                <span className="font-semibold text-ink-900">{money(fees.paystackFee)}</span>
-              </div>
-              <div className="flex justify-between border-t border-ink-200 pt-2 font-extrabold text-ink-900">
-                <span>Total to Pay</span>
-                <span>{money(fees.grossAmount)}</span>
-              </div>
-            </div>
-          )}
+          <p className="rounded-xl bg-ink-50 p-3 text-xs leading-snug text-ink-500">
+            Liduka doesn&apos;t charge a deposit fee. Paystack may charge a payment fee depending on your payment method; you&apos;ll see the exact total before you pay.
+          </p>
 
           {notice && (
             <p

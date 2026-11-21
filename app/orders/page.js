@@ -12,14 +12,17 @@ import {
 } from "@/components/icons";
 
 const FILTERS = ["All", "Pending", "Accepted", "Shipped", "Delivered", "Cancelled"];
+const PAGE = 15; // orders shown per batch
 const money = (n) => formatPrice(n, "GHS");
 
 export default function BuyerOrdersPage() {
-  const { orders, loading, error } = useBuyerOrders();
+  const { orders: allOrders, loading, error } = useBuyerOrders();
+  const orders = useMemo(() => allOrders.filter((o) => !o.buyerHidden), [allOrders]); // "deleted" = hidden from the buyer only
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [selectedId, setSelectedId] = useState(null);
+  const [visible, setVisible] = useState(PAGE);
 
   // The modal reads the live order, so a status change shows without reopening
   const selectedOrder = orders.find((o) => o.id === selectedId) || null;
@@ -95,13 +98,13 @@ export default function BuyerOrdersPage() {
         </span>
         <input
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => { setSearchQuery(e.target.value); setVisible(PAGE); }}
           className="input pl-10 pr-10"
           placeholder="Search by product or order ID"
         />
         {searchQuery && (
           <button
-            onClick={() => setSearchQuery("")}
+            onClick={() => { setSearchQuery(""); setVisible(PAGE); }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600"
             aria-label="Clear search"
           >
@@ -115,7 +118,7 @@ export default function BuyerOrdersPage() {
         {FILTERS.map((f) => (
           <button
             key={f}
-            onClick={() => setActiveFilter(f)}
+            onClick={() => { setActiveFilter(f); setVisible(PAGE); }}
             className={`flex items-center gap-1 whitespace-nowrap rounded-full px-4 py-2 text-sm font-bold transition ${
               activeFilter === f
                 ? "bg-brand-600 text-white"
@@ -149,6 +152,7 @@ export default function BuyerOrdersPage() {
               onClick={() => {
                 setSearchQuery("");
                 setActiveFilter("All");
+                setVisible(PAGE);
               }}
               className="btn-outline"
             >
@@ -162,7 +166,7 @@ export default function BuyerOrdersPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredOrders.map((order) => {
+          {filteredOrders.slice(0, visible).map((order) => {
             const status = statusKey(order);
             const style = STATUS_STYLES[status] || STATUS_STYLES.pending;
             const StatusIcon = style.icon;
@@ -231,6 +235,15 @@ export default function BuyerOrdersPage() {
               </button>
             );
           })}
+
+          {filteredOrders.length > visible && (
+            <button
+              onClick={() => setVisible((v) => v + PAGE)}
+              className="btn-outline w-full py-3"
+            >
+              See more ({filteredOrders.length - visible} remaining)
+            </button>
+          )}
         </div>
       )}
 

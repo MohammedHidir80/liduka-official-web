@@ -7,6 +7,10 @@ import TopBar from "./TopBar";
 import BottomNav from "./BottomNav";
 import Logo from "./logo";
 import Footer from "./Footer";
+import Maintenance from "./Maintenance";
+import AccountBlocked from "./AccountBlocked";
+import useMaintenance from "@/hooks/useMaintenance";
+import { blockInfo } from "@/utils/accountStatus";
 
 // Login-type pages: logged-in users get sent away from these
 const AUTH_ROUTES = [
@@ -59,6 +63,7 @@ function Splash() {
 
 export default function AppShell({ children }) {
   const { user, ready } = useAuth();
+  const maint = useMaintenance(user?.uid);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -105,6 +110,11 @@ export default function AppShell({ children }) {
     };
   }, []);
 
+  // Maintenance first (it covers everything), then suspended or banned accounts
+  if (maint.active) return <Maintenance message={maint.message} />;
+  const blocked = ready && user ? blockInfo(user) : null;
+  if (blocked) return <AccountBlocked info={blocked} />;
+
   if (isPublicRoute) return <>{children}</>; // terms etc. never wait for sign-in
   if (!ready) return <Splash />;
   if (redirectTo) return <Splash />;
@@ -114,7 +124,7 @@ export default function AppShell({ children }) {
     <div className="flex min-h-dvh flex-col">
       <TopBar />
       <main className="flex-1 pb-24 md:pb-10">{children}</main>
-       <Footer />
+      <Footer />
       <BottomNav />
     </div>
   );
