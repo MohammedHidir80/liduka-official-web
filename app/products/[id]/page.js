@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
@@ -71,6 +71,8 @@ function ProductView({ product, vendor, reviewsState }) {
   const [showLightbox, setShowLightbox] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [error, setError] = useState("");
+  const [flash, setFlash] = useState(false);
+  const optionsRef = useRef(null);
 
   const isSaved = isProductSaved(product.id);
   const images = product.images || [];
@@ -98,8 +100,16 @@ function ProductView({ product, vendor, reviewsState }) {
     ? [vendor.city, titleCase(normRegion(vendor.region))].filter(Boolean).join(", ")
     : "";
 
+  // No option chosen: show the message AND scroll to the options so the buyer sees why nothing happened
+  const needOptions = (text) => {
+    setError(text);
+    optionsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setFlash(true);
+    setTimeout(() => setFlash(false), 1800);
+  };
+
   const increase = () => {
-    if (!selectedVariant) return setError("Please select your options first.");
+    if (!selectedVariant) return needOptions("Please select your options first.");
     if (safeQty < stock) setQty(safeQty + 1);
     else setError("No more stock available.");
   };
@@ -112,7 +122,7 @@ function ProductView({ product, vendor, reviewsState }) {
   // Writes to carts/{uid}, the same document mobile uses
   const handleAddToCart = (buyNow = false) => {
     if (isUnavailable) return;
-    if (!selectedVariant) return setError("Please select an available option before continuing.");
+    if (!selectedVariant) return needOptions("Please select an available option before continuing.");
 
     // Buy Now skips the cart, same as mobile
     if (buyNow) {
@@ -323,6 +333,11 @@ function ProductView({ product, vendor, reviewsState }) {
             </div>
           )}
 
+          {/* Options (scrolled to when a buyer taps Buy Now / Add to Cart without choosing) */}
+          <div
+            ref={optionsRef}
+            className={`scroll-mt-24 rounded-2xl transition-shadow duration-300 ${flash ? "ring-2 ring-rose-300 ring-offset-4" : ""}`}
+          >
           {/* Color */}
           {colors.length > 0 && (
             <div className="mb-6">
@@ -384,6 +399,7 @@ function ProductView({ product, vendor, reviewsState }) {
           </div>
 
           {error && <p className="mb-4 text-xs font-semibold text-rose-500">{error}</p>}
+          </div>
 
           {isInactive && (
             <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">

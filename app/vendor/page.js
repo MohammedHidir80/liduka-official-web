@@ -1,10 +1,13 @@
 "use client";
 import Link from "next/link";
 import useVendorStats from "@/hooks/useVendorStats";
+import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/utils/currency";
 import { 
   BoxIcon, WalletIcon, ClockIcon, StarFilledIcon, ChevronRightIcon, PlusIcon 
 } from "@/components/icons"; // Assuming you have these
+
+const SHOW = 15; // products listed here; "See all" has the rest
 
 const Stars = ({ value }) => (
   <div className="flex items-center gap-1">
@@ -24,10 +27,11 @@ const StatSkeleton = () => (
 
 export default function VendorDashboardPage() {
   const { products, summary, loading } = useVendorStats();
+  const { user } = useAuth();
 
   const tiles = [
     { label: "Total Products", value: summary.products, href: "/vendor/products", Icon: BoxIcon, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Total Sales", value: formatPrice(summary.totalSales, "GHS"), href: "/vendor/orders", Icon: WalletIcon, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "Total Sales", value: formatPrice(summary.totalSales, user?.currency || "GHS"), href: "/vendor/orders", Icon: WalletIcon, color: "text-emerald-600", bg: "bg-emerald-50" },
     { label: "Pending Orders", value: summary.pendingOrders, href: "/vendor/orders", Icon: ClockIcon, color: "text-amber-600", bg: "bg-amber-50" },
     { label: "Avg. Rating", value: summary.overallRating ? summary.overallRating.toFixed(1) : "–", Icon: StarFilledIcon, color: "text-orange-600", bg: "bg-orange-50" },
   ];
@@ -101,7 +105,7 @@ export default function VendorDashboardPage() {
           </div>
         ) : (
           <div className="card divide-y divide-ink-100 overflow-hidden">
-            {products.map((p) => (
+            {products.slice(0, SHOW).map((p) => (
               <Link 
                 key={p.id} 
                 href={`/vendor/products/${p.id}/reviews`} 
@@ -131,6 +135,11 @@ export default function VendorDashboardPage() {
                 <ChevronRightIcon size={18} className="text-ink-300 hidden sm:block" />
               </Link>
             ))}
+            {products.length > SHOW && (
+              <Link href="/vendor/products" className="block p-3 text-center text-sm font-bold text-brand-600 hover:bg-ink-50">
+                See all {products.length} products
+              </Link>
+            )}
           </div>
         )}
       </div>

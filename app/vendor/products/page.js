@@ -7,6 +7,8 @@ import useVendorProducts from "@/hooks/useVendorProducts";
 import { productTotalStock } from "@/lib/vendorProducts";
 import { formatPrice } from "@/utils/currency";
 
+const PAGE = 15; // products shown per batch
+
 const STATUS_STYLE = {
   active: "bg-green-100 text-green-700",
   inactive: "bg-gray-100 text-gray-600",
@@ -19,6 +21,7 @@ export default function VendorProductsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [busyId, setBusyId] = useState(null);
+  const [visible, setVisible] = useState(PAGE);
 
   const list = useMemo(() => {
     let r = products;
@@ -65,9 +68,9 @@ export default function VendorProductsPage() {
 
       <div className="mb-4 flex flex-wrap gap-2">
         <input className="input max-w-xs" placeholder="Search products…" value={search}
-          onChange={(e) => setSearch(e.target.value)} />
+          onChange={(e) => { setSearch(e.target.value); setVisible(PAGE); }} />
         {[["all", "All"], ["out", "Out of stock"]].map(([k, label]) => (
-          <button key={k} onClick={() => setFilter(k)}
+          <button key={k} onClick={() => { setFilter(k); setVisible(PAGE); }}
             className={filter === k ? "btn-primary" : "btn-outline"}>{label}</button>
         ))}
       </div>
@@ -80,7 +83,7 @@ export default function VendorProductsPage() {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((p) => {
+          {list.slice(0, visible).map((p) => {
             const stock = productTotalStock(p);
             return (
               <div key={p.id} className="card flex gap-3 p-3">
@@ -108,6 +111,12 @@ export default function VendorProductsPage() {
             );
           })}
         </div>
+      )}
+
+      {list.length > visible && (
+        <button className="btn-outline mt-4 w-full py-3" onClick={() => setVisible((v) => v + PAGE)}>
+          See more ({list.length - visible} remaining)
+        </button>
       )}
     </div>
   );

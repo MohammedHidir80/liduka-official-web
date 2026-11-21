@@ -35,6 +35,8 @@ export default function VendorEditProfilePage() {
   const [pwMsg, setPwMsg] = useState(null);
   const [emailMsg, setEmailMsg] = useState(null);
   const canSecure = hasPasswordLogin();
+  const [locBusy, setLocBusy] = useState(false);
+  const [locMsg, setLocMsg] = useState(null);
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -48,9 +50,50 @@ export default function VendorEditProfilePage() {
         region: regionOptions.some((r) => r.key === region) ? region : "",
         city: d.city || "",
         address: d.address || "",
+        latitude: d.latitude ?? null,
+        longitude: d.longitude ?? null,
       });
     });
   }, []);
+
+  // Detect the shop's city from the device location (nothing to type)
+  const detectLocation = () => {
+    setLocMsg(null);
+    if (!navigator.geolocation) return setLocMsg({ text: "Your browser can't detect location." });
+    setLocBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const { latitude, longitude } = coords;
+          const res = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          if (!res.ok) throw new Error("lookup failed");
+          const g = await res.json();
+          const city = g.city || g.locality || "";
+          if (!city) throw new Error("no city");
+          const region = normRegion(g.principalSubdivision || "");
+          setForm((f) => ({
+            ...f,
+            city,
+            latitude,
+            longitude,
+            region: regionOptions.some((x) => x.key === region) ? region : f.region,
+          }));
+          setLocMsg({ ok: true, text: `Detected: ${city}${g.principalSubdivision ? ", " + g.principalSubdivision : ""}. Tap Save Changes to keep it.` });
+        } catch {
+          setLocMsg({ text: "Couldn't work out your city. Please try again." });
+        } finally {
+          setLocBusy(false);
+        }
+      },
+      (err) => {
+        setLocBusy(false);
+        setLocMsg({ text: err.code === 1 ? "Location permission was denied. Allow location for this site and try again." : "Couldn't get your location. Please try again." });
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+    );
+  };
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -67,6 +110,7 @@ export default function VendorEditProfilePage() {
         fullName: form.fullName.trim(),
         phone,
         city: form.city.trim(),
+        ...(form.latitude != null && form.longitude != null ? { latitude: form.latitude, longitude: form.longitude } : {}),
         region: form.region,
         ...(regionName ? { regionLabel: regionName } : {}),
         address: form.address.trim(),
@@ -159,12 +203,19 @@ export default function VendorEditProfilePage() {
             </select>
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-bold text-ink-600">City</label>
+            <label className="mb-1.5 block text-xs font-bold text-ink-600">City (detected)</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400"><MapPinIcon size={18} /></span>
-              <input className="input pl-10" placeholder="City" value={form.city} onChange={set("city")} />
+              <input className="input bg-ink-50 pl-10" placeholder="Not detected yet" value={form.city} readOnly />
             </div>
           </div>
+        </div>
+
+        <div>
+          <button type="button" onClick={detectLocation} disabled={locBusy} className="btn-outline w-full py-2.5">
+            {locBusy ? "Detecting..." : form.city ? "Detect again" : "Detect my location"}
+          </button>
+          <div className="mt-2"><Msg m={locMsg} /></div>
         </div>
 
         <div>
