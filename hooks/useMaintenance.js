@@ -1,5 +1,5 @@
 "use client";
-// hooks/useMaintenance.js — settings/maintenance { enabled, message, allowUids: [] }.
+// hooks/useMaintenance.js — settings/maintenance { web, mobile, message, allowUids: [] } (written by the admin dashboard; "enabled" still works as an old master switch).
 // One small document, watched live, so switching it on or off reaches everyone within seconds.
 // allowUids lets you (the owner) keep using the app while it is on. If the document can't be read,
 // the app stays open (it never locks people out by mistake).
@@ -14,7 +14,7 @@ export default function useMaintenance(uid) {
       doc(db, "settings", "maintenance"),
       (snap) => {
         const d = snap.exists() ? snap.data() : {};
-        setM({ on: !!d.enabled, message: d.message || "", allow: Array.isArray(d.allowUids) ? d.allowUids : [] });
+        setM({ on: !!(d.web ?? d.enabled), message: d.message || "", allow: Array.isArray(d.allowUids) ? d.allowUids : [] });
       },
       () => setM({ on: false, message: "", allow: [] })
     );
