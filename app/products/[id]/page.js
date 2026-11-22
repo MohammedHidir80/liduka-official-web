@@ -13,6 +13,7 @@ import { formatPrice } from "@/utils/currency";
 import { wholesaleOf } from "@/utils/wholesale";
 import ReviewSection from "@/components/ReviewSection";
 import ReportButton from "@/components/ReportButton";
+import PromoBanner from "@/components/PromoBanner";
 import {
   StarIcon, StarFilledIcon, HeartIcon, MapPinIcon, ChevronLeftIcon, CheckIcon,
 } from "@/components/icons";
@@ -443,6 +444,8 @@ function ProductView({ product, vendor, reviewsState }) {
           )}
         </div>
       </div>
+
+      <PromoBanner compact className="mt-10" />
 
       {/* Reviews */}
       <div className="mt-12 max-w-3xl">
