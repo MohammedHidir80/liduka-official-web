@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { showToast } from "@/utils/toast";
 
 export default function useQuickAdd() {
   const { addToCart } = useCart();
@@ -16,7 +17,8 @@ export default function useQuickAdd() {
         return;
       }
       const result = addToCart(product, 1, variants[0] || null);
-      alert(result.ok ? `Added ${product.title} to cart!` : result.message);
+      if (result.ok) showToast(`Added ${product.title} to cart`);
+      else showToast(result.message, "error", 3200);
     },
     [addToCart]
   );
@@ -24,7 +26,8 @@ export default function useQuickAdd() {
   const confirm = useCallback(
     (product, qty, variant) => {
       const result = addToCart(product, qty, variant);
-      alert(result.ok ? `Added ${qty} x ${product.title} to cart!` : result.message);
+      if (result.ok) showToast(`Added ${qty} x ${product.title} to cart`);
+      else showToast(result.message, "error", 3200);
     },
     [addToCart]
   );

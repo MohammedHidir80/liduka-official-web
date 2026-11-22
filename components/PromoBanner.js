@@ -2,10 +2,9 @@
 // components/PromoBanner.js — animated Liduka banner that rotates between a BUYER slide and a VENDOR (onboarding) slide.
 // Pure CSS/SVG: no images to load. Auto-advances (pauses on hover/touch), swipe + dots to change, respects reduced motion.
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import {
-  BagIcon, BoxIcon, StarFilledIcon, MapPinIcon, WalletIcon, CheckIcon, UserCircleIcon, ChevronRightIcon,
+  BagIcon, BoxIcon, StarFilledIcon, MapPinIcon, WalletIcon, CheckIcon, UserCircleIcon,
 } from "@/components/icons";
 
 const SLIDE_MS = 7000;
@@ -18,7 +17,6 @@ const SLIDES = {
     title: ["Shop. Discover.", "Support African businesses."],
     sub: "Liduka is a Pan-African marketplace making online commerce easier for businesses and customers across Africa.",
     points: ["A vast marketplace", "Shop with ease and confidence", "Grow together across borders"],
-    cta: { label: "Explore the marketplace", href: "/" },
     tiles: [
       { Icon: BagIcon, label: "Find exactly what you need" },
       { Icon: StarFilledIcon, label: "Trusted vendors" },
@@ -31,7 +29,6 @@ const SLIDES = {
     title: ["Take your business online", "with Liduka."],
     sub: "More customers. More opportunities. A bigger future. Join the Liduka Vendor Partnership Programme.",
     points: ["Simple onboarding", "Product listing support", "Promotional opportunities"],
-    cta: { label: "Become a vendor", href: "/vendor-login" },
     steps: ["Register", "Business profile", "List products", "Get verified", "Go live"],
     tiles: [
       { Icon: UserCircleIcon, label: "Wider audience" },
@@ -90,14 +87,11 @@ function Slide({ s, active }) {
           </ol>
         )}
 
-        <div className="lpb-actions">
-          <Link href={s.cta.href} tabIndex={active ? 0 : -1} className="lpb-cta">
-            {s.cta.label} <ChevronRightIcon size={16} />
-          </Link>
-          {s.key === "vendor" && (
-            <a href={`mailto:${SUPPORT}`} tabIndex={active ? 0 : -1} className="lpb-mail">{SUPPORT}</a>
-          )}
-        </div>
+        {s.key === "vendor" && (
+          <p className="lpb-contact">
+            Questions? <a href={`mailto:${SUPPORT}`} tabIndex={active ? 0 : -1} className="lpb-mail">{SUPPORT}</a>
+          </p>
+        )}
       </div>
 
       <div className="lpb-tiles" aria-hidden="true">
@@ -113,11 +107,11 @@ function Slide({ s, active }) {
 }
 
 // compact: a shorter banner for the product page
-export default function PromoBanner({ compact = false, className = "" }) {
+export default function PromoBanner({ compact = false, startAt = 0, className = "" }) {
   const { user } = useAuth();
   // vendors don't need the "become a vendor" slide
   const list = user?.role === "vendor" ? [SLIDES.buyer] : [SLIDES.buyer, SLIDES.vendor];
-  const [i, setI] = useState(0);
+  const [i, setI] = useState(startAt); // startAt: 0 = buyer slide first, 1 = vendor slide first
   const [hold, setHold] = useState(false);
   const [x0, setX0] = useState(null);
   const idx = i % list.length;
@@ -225,12 +219,7 @@ const CSS = `
 .lpb-steps{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:5px}
 .lpb-steps li{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;padding:3px 9px 3px 3px;border-radius:9999px;background:rgba(255,255,255,.16)}
 .lpb-steps b{display:grid;place-items:center;width:16px;height:16px;border-radius:9999px;background:#F2B705;color:#0F2F73;font-size:9px}
-.lpb-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
-.lpb-cta{text-decoration:none;position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:5px;padding:9px 16px;border-radius:9999px;
-  background:#fff;color:#1259C9;font-weight:800;font-size:13px;box-shadow:0 6px 16px -8px rgba(0,0,0,.45);transition:transform .2s}
-.lpb-cta:hover{transform:translateY(-2px)}
-.lpb-cta::after{content:"";position:absolute;top:0;bottom:0;left:0;width:40%;transform:translateX(-160%) skewX(-18deg);
-  background:linear-gradient(100deg,transparent,rgba(24,119,242,.3),transparent);animation:lpb-sweep 4s ease-in-out infinite}
+.lpb-contact{margin:10px 0 0;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.85)}
 .lpb-mail{font-size:11.5px;font-weight:700;color:#fff;text-decoration:underline;text-underline-offset:3px}
 
 .lpb-tiles{display:none;flex-direction:column;gap:8px;flex:none;width:176px}
@@ -264,7 +253,6 @@ const CSS = `
 
 @keyframes lpb-ping{0%{transform:scale(1);opacity:.9}100%{transform:scale(5);opacity:0}}
 @keyframes lpb-float{0%,100%{transform:translate(0,0)}50%{transform:translate(-14px,10px)}}
-@keyframes lpb-sweep{0%{transform:translateX(-160%) skewX(-18deg)}60%,100%{transform:translateX(420%) skewX(-18deg)}}
 @keyframes lpb-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
 @keyframes lpb-prog{to{transform:scaleX(1)}}
 @media(prefers-reduced-motion:reduce){

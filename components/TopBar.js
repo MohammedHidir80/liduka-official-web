@@ -15,6 +15,36 @@ import { getIconDetails } from "@/utils/notifications";
 import Logo from "./logo";
 import { SearchIcon, CartIcon, WalletIcon, ChevronLeftIcon, BellIcon } from "./icons";
 
+// Becomes "on" for ~1s whenever `value` goes UP (a new notification, an item added to the cart).
+// Increases in the first moments after the page opens are the data loading in, so they are ignored.
+function useRing(value, enabled = true) {
+  const prev = useRef(null);
+  const born = useRef(Date.now());
+  const timer = useRef(null);
+  const [state, setState] = useState({ on: false, tick: 0 });
+  useEffect(() => {
+    if (!enabled) return;
+    if (prev.current !== null && value > prev.current && Date.now() - born.current > 2500) {
+      setState((s) => ({ on: true, tick: s.tick + 1 }));
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setState((s) => ({ ...s, on: false })), 1100);
+    }
+    prev.current = value;
+  }, [value, enabled]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return state;
+}
+
+const RING_CSS = `
+.lk-ring{display:inline-grid;transform-origin:50% 8%;animation:lk-ring 1s ease-in-out}
+.lk-bounce{display:inline-grid;animation:lk-bounce .8s cubic-bezier(.3,1.4,.5,1)}
+.lk-pop{animation:lk-pop .6s ease-out}
+@keyframes lk-ring{0%,100%{transform:rotate(0)}10%{transform:rotate(18deg)}22%{transform:rotate(-16deg)}34%{transform:rotate(12deg)}46%{transform:rotate(-9deg)}58%{transform:rotate(5deg)}70%{transform:rotate(-2deg)}}
+@keyframes lk-bounce{0%,100%{transform:translateY(0) scale(1)}25%{transform:translateY(-7px) scale(1.15)}50%{transform:translateY(0) scale(.94)}72%{transform:translateY(-3px) scale(1.06)}}
+@keyframes lk-pop{0%{transform:scale(1)}40%{transform:scale(1.7)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.lk-ring,.lk-bounce,.lk-pop{animation:none}}
+`;
+
 export default function TopBar() {
   const router = useRouter();
   const { user } = useAuth();
@@ -29,6 +59,8 @@ export default function TopBar() {
   const [showNotifs, setShowNotifs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const notifRef = useRef(null);
+  const bell = useRing(unreadCount, ready);
+  const cart = useRing(cartCount);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -58,6 +90,7 @@ export default function TopBar() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-ink-100 bg-white/90 backdrop-blur">
+      <style>{RING_CSS}</style>
       <div className="container-page flex h-14 items-center gap-3">
         {isHome ? (
           <Link href={homeHref} className="flex items-center gap-2">
@@ -123,9 +156,9 @@ export default function TopBar() {
               className="relative grid h-9 w-9 place-items-center rounded-xl text-ink-700 transition hover:bg-ink-100"
               aria-label="Notifications"
             >
-              <BellIcon size={20} />
+              <span key={bell.tick} className={bell.on ? "lk-ring" : "inline-grid"}><BellIcon size={20} /></span>
               {unreadCount > 0 && (
-                <span className="absolute right-1 top-1 grid h-4 min-w-[16px] place-items-center rounded-full border-2 border-white bg-rose-500 px-1 text-[10px] font-bold text-white">
+                <span className={`absolute right-1 top-1 ${bell.on ? "lk-pop" : ""} grid h-4 min-w-[16px] place-items-center rounded-full border-2 border-white bg-rose-500 px-1 text-[10px] font-bold text-white`}>
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
@@ -207,9 +240,9 @@ export default function TopBar() {
               className="relative grid h-9 w-9 place-items-center rounded-xl text-ink-700 hover:bg-ink-100"
               aria-label="Cart"
             >
-              <CartIcon size={20} />
+              <span key={cart.tick} className={cart.on ? "lk-bounce" : "inline-grid"}><CartIcon size={20} /></span>
               {cartCount > 0 && (
-                <span className="absolute right-0.5 top-0.5 grid h-4 min-w-[16px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                <span className={`absolute right-0.5 top-0.5 ${cart.on ? "lk-pop" : ""} grid h-4 min-w-[16px] place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white`}>
                   {cartCount}
                 </span>
               )}
