@@ -20,6 +20,8 @@ const DELIVERY_CLASSES = [
   { key: "heavy", label: "Heavy", hint: "Fridge, sofa, heavy items · over 30 kg" },
 ];
 
+const MODERATED = ["suspended", "banned"]; // set by the admin dashboard
+
 export default function EditProductPage() {
   const { id } = useParams();
   const router = useRouter();
@@ -94,7 +96,7 @@ export default function EditProductPage() {
         description: description.trim(),
         wholesale: wsOn ? { minQty: parseInt(wsMin, 10), price: parseFloat(wsPrice) } : null,
         deliveryClass,
-        status,
+        ...(MODERATED.includes(product.status) ? {} : { status }), // a suspended/banned product keeps its status
         ...buildVariants(variants),
         updatedAt: serverTimestamp(),
         stockUpdatedAt: serverTimestamp(),
@@ -168,12 +170,20 @@ export default function EditProductPage() {
 
       <section className="card space-y-3 p-4">
         <h2 className="font-semibold">Status</h2>
+        {MODERATED.includes(product.status) ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+            <p className="font-bold">This product is {product.status === "banned" ? "banned" : "suspended"} by Liduka.</p>
+            {product.moderationReason && <p className="mt-1">Reason: {product.moderationReason}</p>}
+            <p className="mt-1 text-xs">It is hidden from buyers. Contact support if you think this is a mistake.</p>
+          </div>
+        ) : (
         <div className="flex flex-wrap gap-2">
           {STATUSES.map((s) => (
             <button type="button" key={s.value} onClick={() => setStatus(s.value)}
               className={status === s.value ? "btn-primary" : "btn-outline"}>{s.label}</button>
           ))}
         </div>
+        )}
       </section>
 
       <section className="card space-y-3 p-4">

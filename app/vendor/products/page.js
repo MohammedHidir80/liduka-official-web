@@ -14,6 +14,8 @@ const STATUS_STYLE = {
   inactive: "bg-gray-100 text-gray-600",
   "out-of-stock": "bg-red-100 text-red-700",
   uploading: "bg-yellow-100 text-yellow-700",
+  suspended: "bg-amber-100 text-amber-800",
+  banned: "bg-red-100 text-red-700",
 };
 
 export default function VendorProductsPage() {
@@ -98,6 +100,9 @@ export default function VendorProductsPage() {
                     </span>
                     <span className="text-ink-500">{stock} in stock</span>
                   </div>
+                  {p.moderationReason && ["suspended", "banned"].includes(p.status) && (
+                    <p className="mt-1 line-clamp-2 text-xs text-red-600">{p.moderationReason}</p>
+                  )}
                   <div className="mt-auto flex gap-3 pt-2 text-sm">
                     <Link href={`/vendor/products/${p.id}`} className="text-brand-600 font-medium">Edit</Link>
                     <Link href={`/vendor/products/${p.id}/reviews`} className="text-ink-500">Reviews</Link>
