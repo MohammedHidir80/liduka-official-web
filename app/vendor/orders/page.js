@@ -7,6 +7,7 @@ import VendorOrderModal, { STATUS_STYLE } from "@/components/VendorOrderModal";
 import { formatPrice } from "@/utils/currency";
 
 const FILTERS = ["All", "Pending", "Accepted", "Shipped", "Delivered", "Cancelled"];
+const PAGE = 15; // orders shown per batch
 const DAY30 = 30 * 24 * 60 * 60 * 1000;
 
 export default function VendorOrdersPage() {
@@ -15,6 +16,7 @@ export default function VendorOrdersPage() {
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [visible, setVisible] = useState(PAGE);
   const { user } = useAuth();
   // keep the Orders badge right after orders are accepted / cancelled here
   const pendingHere = orders.filter((o) => o.status === "pending").length;
@@ -45,12 +47,12 @@ export default function VendorOrdersPage() {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <input className="input max-w-xs" placeholder="Search product, buyer, color, size…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className="input max-w-xs" placeholder="Search product, buyer, color, size…" value={search} onChange={(e) => { setSearch(e.target.value); setVisible(PAGE); }} />
         {FILTERS.map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className={filter === f ? "btn-primary" : "btn-outline"}>{f}</button>
+          <button key={f} onClick={() => { setFilter(f); setVisible(PAGE); }} className={filter === f ? "btn-primary" : "btn-outline"}>{f}</button>
         ))}
         <label className="ml-auto flex items-center gap-2 text-sm text-ink-500">
-          <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} /> Show older than 30 days
+          <input type="checkbox" checked={showAll} onChange={(e) => { setShowAll(e.target.checked); setVisible(PAGE); }} /> Show older than 30 days
         </label>
       </div>
 
@@ -58,7 +60,7 @@ export default function VendorOrdersPage() {
         <div className="card p-8 text-center text-ink-500">{search || filter !== "All" ? "No orders match your filters." : "No orders yet."}</div>
       ) : (
         <div className="space-y-3">
-          {list.map((o) => {
+          {list.slice(0, visible).map((o) => {
             const st = (o.status || "").toLowerCase();
             return (
               <button key={o.id} onClick={() => setSelectedId(o.id)} className="card flex w-full gap-3 p-3 text-left hover:shadow-md">
@@ -91,7 +93,13 @@ export default function VendorOrdersPage() {
               </button>
             );
           })}
-          {hasMore && <button className="btn-outline w-full" onClick={loadMore}>Load more</button>}
+          {list.length > visible ? (
+            <button className="btn-outline w-full" onClick={() => setVisible((v) => v + PAGE)}>
+              See more ({list.length - visible} remaining)
+            </button>
+          ) : (
+            hasMore && <button className="btn-outline w-full" onClick={loadMore}>Load more</button>
+          )}
         </div>
       )}
 
