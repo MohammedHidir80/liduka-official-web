@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import useVendorStats from "@/hooks/useVendorStats";
-import { useAuth } from "@/context/AuthContext";
 import { formatPrice } from "@/utils/currency";
 import { 
   BoxIcon, WalletIcon, ClockIcon, StarFilledIcon, ChevronRightIcon, PlusIcon 
@@ -27,11 +26,10 @@ const StatSkeleton = () => (
 
 export default function VendorDashboardPage() {
   const { products, summary, loading } = useVendorStats();
-  const { user } = useAuth();
 
   const tiles = [
     { label: "Total Products", value: summary.products, href: "/vendor/products", Icon: BoxIcon, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Total Sales", value: formatPrice(summary.totalSales, user?.currency || "GHS"), href: "/vendor/orders", Icon: WalletIcon, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "Total Sales", value: Number(summary.totalSales || 0).toLocaleString(undefined, { maximumFractionDigits: 0 }), href: "/vendor/orders", Icon: WalletIcon, color: "text-emerald-600", bg: "bg-emerald-50" },
     { label: "Pending Orders", value: summary.pendingOrders, href: "/vendor/orders", Icon: ClockIcon, color: "text-amber-600", bg: "bg-amber-50" },
     { label: "Avg. Rating", value: summary.overallRating ? summary.overallRating.toFixed(1) : "–", Icon: StarFilledIcon, color: "text-orange-600", bg: "bg-orange-50" },
   ];
