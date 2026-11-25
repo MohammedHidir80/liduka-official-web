@@ -9,6 +9,8 @@ import { useWallet } from "@/context/WalletContext";
 import { useSettings } from "@/context/SettingsContext";
 import { useNotifications } from "@/context/NotificationContext";
 import usePendingOrders from "@/hooks/usePendingOrders";
+import useWebPushSync from "@/hooks/useWebPushSync";
+import PushPrompt from "./PushPrompt";
 import { timeAgo } from "@/lib/format";
 import { formatPrice } from "@/utils/currency";
 import { getIconDetails } from "@/utils/notifications";
@@ -59,6 +61,7 @@ export default function TopBar() {
   const [showNotifs, setShowNotifs] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const notifRef = useRef(null);
+  useWebPushSync(user?.uid); // if this browser already allowed notifications, keep its token saved
   const bell = useRing(unreadCount, ready);
   const cart = useRing(cartCount);
 
@@ -91,6 +94,7 @@ export default function TopBar() {
   return (
     <header className="sticky top-0 z-30 border-b border-ink-100 bg-white/90 backdrop-blur">
       <style>{RING_CSS}</style>
+      <PushPrompt />
       <div className="container-page flex h-14 items-center gap-3">
         {isHome ? (
           <Link href={homeHref} className="flex items-center gap-2">

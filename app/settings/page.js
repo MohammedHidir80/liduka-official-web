@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useSettings } from "@/context/SettingsContext";
+import { disableWebPush, enableWebPush, needsHomeScreenInstall, pushSupported, webPushEnabled } from "@/lib/webPush";
 import { ChevronLeftIcon, BellIcon, CheckIcon, LogOutIcon, GlobeIcon } from "@/components/icons";
 
 const LANGUAGES = [
@@ -10,6 +12,72 @@ const LANGUAGES = [
   { code: "fr", name: "Français" },
   { code: "pt", name: "Português" },
 ];
+
+// Browser notifications: on / off for THIS browser
+function PushSetting({ uid }) {
+  const [state, setState] = useState("loading"); // loading | unsupported | iphone | blocked | off | on
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const refresh = async () => {
+    if (needsHomeScreenInstall()) return setState("iphone");
+    if (!(await pushSupported())) return setState("unsupported");
+    if (Notification.permission === "denied") return setState("blocked");
+    setState(webPushEnabled(uid) ? "on" : "off");
+  };
+  useEffect(() => { refresh(); }, [uid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const turnOn = async () => {
+    setBusy(true); setMsg("");
+    const r = await enableWebPush(uid);
+    setBusy(false);
+    if (!r.ok && r.reason !== "denied" && r.reason !== "not-granted") {
+      setMsg("Couldn't turn notifications on. Press F12 and look at the Console for lines starting [push].");
+    }
+    refresh();
+  };
+  const turnOff = async () => {
+    setBusy(true); setMsg("");
+    await disableWebPush(uid);
+    setBusy(false);
+    refresh();
+  };
+
+  const sub = {
+    loading: "Checking...",
+    unsupported: "This browser doesn't support notifications.",
+    iphone: "On iPhone: tap Share, then Add to Home Screen, and open Liduka from there to turn this on.",
+    blocked: "Blocked. Click the lock icon next to the web address, set Notifications to Allow, then reload.",
+    off: "Get alerts for orders and updates, even when Liduka is closed.",
+    on: "On for this browser. You'll get alerts even when Liduka is closed.",
+  }[state];
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-50 text-brand-600">
+            <BellIcon size={18} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-ink-900">Browser notifications</p>
+            <p className="text-xs text-ink-500">{sub}</p>
+          </div>
+        </div>
+        {(state === "off" || state === "on") && (
+          <button
+            onClick={state === "on" ? turnOff : turnOn}
+            disabled={busy}
+            className={`${state === "on" ? "btn-outline" : "btn-primary"} shrink-0 px-4 py-2 text-xs`}
+          >
+            {busy ? "..." : state === "on" ? "Turn off" : "Turn on"}
+          </button>
+        )}
+      </div>
+      {msg && <p className="mt-2 text-xs font-semibold text-rose-600">{msg}</p>}
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -60,7 +128,18 @@ export default function SettingsPage() {
         ))}
       </div>
 
-     
+      {/* Notifications */}
+      {user?.uid && (
+        <>
+          <h2 className="mb-3 ml-1 text-xs font-bold uppercase tracking-wider text-ink-400">
+            {t.notifications || "Notifications"}
+          </h2>
+          <div className="mb-8 rounded-2xl border border-ink-100 bg-white overflow-hidden shadow-sm">
+            <PushSetting uid={user.uid} />
+          </div>
+        </>
+      )}
+
       {/* About */}
       <h2 className="mb-3 ml-1 text-xs font-bold uppercase tracking-wider text-ink-400">
         {t.about}
@@ -75,8 +154,6 @@ export default function SettingsPage() {
           <span className="text-sm font-semibold text-ink-900">Liduka</span>
         </div>
       </div>
-
-      
     </div>
   );
 }

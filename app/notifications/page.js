@@ -5,6 +5,7 @@ import { useNotifications } from "@/context/NotificationContext";
 import { useSettings } from "@/context/SettingsContext";
 import { timeAgo } from "@/lib/format";
 import { getIconDetails } from "@/utils/notifications";
+import EnablePush from "@/components/EnablePush";
 import { ChevronLeftIcon, BellIcon } from "@/components/icons";
 
 export default function NotificationsPage() {
@@ -34,6 +35,8 @@ export default function NotificationsPage() {
           )}
         </div>
       </div>
+
+      <EnablePush />
 
       {!ready ? (
         <div className="overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-sm">
