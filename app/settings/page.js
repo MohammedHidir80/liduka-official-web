@@ -32,7 +32,14 @@ function PushSetting({ uid }) {
     const r = await enableWebPush(uid);
     setBusy(false);
     if (!r.ok && r.reason !== "denied" && r.reason !== "not-granted") {
-      setMsg("Couldn't turn notifications on. Press F12 and look at the Console for lines starting [push].");
+      const why = {
+        "no-vapid": "The website is missing its VAPID key (NEXT_PUBLIC_FIREBASE_VAPID_KEY in Vercel). Add it and redeploy.",
+        "sw-failed": "The notification service worker didn't load. Check that /firebase-messaging-sw.js opens on the site.",
+        "token-failed": "Firebase refused to give a token. Check the VAPID key matches this Firebase project, and that the Firebase Installations / FCM Registration APIs are enabled.",
+        "save-failed": "Got a token but couldn't save it to your account (Firestore rules).",
+        unsupported: "This browser can't do notifications.",
+      }[r.reason] || "Something went wrong.";
+      setMsg(`Couldn't turn notifications on (${r.reason || "error"}). ${why}`);
     }
     refresh();
   };
