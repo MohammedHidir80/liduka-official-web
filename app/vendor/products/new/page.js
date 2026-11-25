@@ -226,7 +226,10 @@ export default function AddProductPage() {
       <div className="flex items-center justify-between border-b border-ink-100 pb-3">
         <button onClick={back} disabled={saving} className="grid h-9 w-9 place-items-center rounded-xl text-xl text-ink-900 hover:bg-ink-100" aria-label="Back">←</button>
         <h1 className="text-[17px] font-extrabold text-ink-900">Add Product</h1>
-        <div className="w-9" />
+        <button type="button" onClick={step === last ? submit : next} disabled={saving}
+          className="rounded-xl bg-brand-600 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-70">
+          {saving ? `${Math.round(progress * 100)}%` : step === last ? "Publish" : "Next"}
+        </button>
       </div>
 
       {/* progress */}
