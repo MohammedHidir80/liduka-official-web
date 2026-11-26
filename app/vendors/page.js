@@ -7,6 +7,7 @@ import { useSave } from "@/context/SaveContext";
 import { useSettings } from "@/context/SettingsContext";
 import useVendors from "@/hooks/useVendors";
 import { locationTier, normRegion, titleCase } from "@/utils/location";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { ChevronLeftIcon, MapPinIcon, SearchIcon } from "@/components/icons";
 
 function VendorCard({ v }) {
@@ -32,7 +33,10 @@ function VendorCard({ v }) {
               )}
             </div>
           </div>
-          <h3 className="truncate text-base font-extrabold text-ink-900">{v.name}</h3>
+          <h3 className="flex items-center gap-1 text-base font-extrabold text-ink-900">
+            <span className="truncate">{v.name}</span>
+            {v.verified && <VerifiedBadge size={16} className="shrink-0" />}
+          </h3>
           <p className="mt-1 flex items-center gap-1 truncate text-[11px] font-semibold text-ink-500">
             <MapPinIcon size={12} /> {place || "Location not available"}
           </p>

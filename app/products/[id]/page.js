@@ -14,6 +14,7 @@ import { wholesaleOf } from "@/utils/wholesale";
 import ReviewSection from "@/components/ReviewSection";
 import ReportButton from "@/components/ReportButton";
 import PromoBanner from "@/components/PromoBanner";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import {
   StarIcon, StarFilledIcon, HeartIcon, MapPinIcon, ChevronLeftIcon, CheckIcon,
 } from "@/components/icons";
@@ -314,7 +315,10 @@ function ProductView({ product, vendor, reviewsState }) {
                   </span>
                 )}
                 <div>
-                  <span className="font-bold text-ink-900">{vendor.name}</span>
+                  <span className="flex items-center gap-1 font-bold text-ink-900">
+                    {vendor.name}
+                    {vendor.verified && <VerifiedBadge size={16} className="shrink-0" />}
+                  </span>
                   {vendorPlace && (
                     <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-500">
                       <MapPinIcon size={12} /> {vendorPlace}

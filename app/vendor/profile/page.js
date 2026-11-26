@@ -9,6 +9,7 @@ import { auth, db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { uploadVendorImage } from "@/lib/vendorProfile";
 import { formatPrice } from "@/utils/currency";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { 
   CameraIcon, ShareIcon, CheckIcon, WalletIcon, ChevronRightIcon, 
   StoreIcon, BoxIcon, BagIcon, ReceiptIcon, SettingsIcon, LogOutIcon, UserCircleIcon
@@ -131,7 +132,11 @@ export default function VendorProfilePage() {
           </label>
         </div>
 
-        <h1 className="mt-3 text-2xl font-extrabold text-ink-900">{info.fullName || "Vendor Store"}</h1>
+        <h1 className="mt-3 flex items-center justify-center gap-1.5 text-2xl font-extrabold text-ink-900">
+          {info.fullName || "Vendor Store"}
+          {info.verified && <VerifiedBadge size={22} className="shrink-0" />}
+        </h1>
+        {info.verified && <p className="text-[11px] font-bold uppercase tracking-wider text-brand-600">Verified vendor</p>}
         <p className="text-sm font-medium text-ink-500">{user?.email}</p>
         {info.createdAt?.toDate && (
           <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-ink-100 px-2.5 py-0.5 text-[11px] font-bold text-ink-600">
@@ -154,8 +159,6 @@ export default function VendorProfilePage() {
           </div>
         )}
       </div>
-
-      {/* Wallet Highlight Card */}
       
 
       {/* Menu List */}

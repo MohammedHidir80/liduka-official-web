@@ -24,6 +24,7 @@ export default function useVendors() {
               city: x.city || "",
               region: x.region || "",
               cover: x.coverURL || "",
+              verified: !!x.verified, // blue tick, set from the admin Vendors page
             };
           })
         );

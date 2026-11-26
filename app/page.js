@@ -16,6 +16,7 @@ import { welcomeFor } from "@/utils/greetings";
 import ProductCard from "@/components/ProductCard";
 import PromoBanner from "@/components/PromoBanner";
 import VariantModal from "@/components/VariantModal";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { SearchIcon, ChevronRightIcon, MapPinIcon } from "@/components/icons";
 
 const FOR_YOU_COUNT = 8;
@@ -65,7 +66,10 @@ function VendorStrip({ list, seeMore, isVendorSaved, toggleSaveVendor }) {
                     {v.name.charAt(0)}
                   </span>
                 )}
-                <p className="truncate text-sm font-bold text-ink-800">{v.name}</p>
+                <p className="flex items-center gap-1 text-sm font-bold text-ink-800">
+                  <span className="truncate">{v.name}</span>
+                  {v.verified && <VerifiedBadge size={14} className="shrink-0" />}
+                </p>
                 <p className="truncate text-[11px] text-ink-400">{place || "Location not available"}</p>
               </Link>
               <button

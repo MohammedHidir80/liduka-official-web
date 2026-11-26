@@ -11,6 +11,7 @@ import useProducts from "@/hooks/useProducts";
 import useQuickAdd from "@/hooks/useQuickAdd";
 import ProductCard from "@/components/ProductCard";
 import VariantModal from "@/components/VariantModal";
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { normRegion, titleCase } from "@/utils/location";
 import {
   ChevronLeftIcon, ShareIcon, MapPinIcon, CheckIcon, SearchIcon, CalendarIcon,
@@ -152,7 +153,7 @@ export default function VendorCatalogPage() {
         <div className="mb-2 flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-1.5">
             <h2 className="truncate text-xl font-extrabold text-ink-900">{vendor.name}</h2>
-            {vendor.verified && <CheckIcon size={16} className="shrink-0 text-brand-600" />}
+            {vendor.verified && <VerifiedBadge size={20} className="shrink-0" />}
           </div>
           <button
             onClick={() => toggleSaveVendor(vendor.id)}

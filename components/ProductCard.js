@@ -5,6 +5,7 @@ import Link from "next/link";
 import { HeartIcon, StarFilledIcon, CartIcon } from "./icons";
 import { formatPrice } from "@/utils/currency";
 import { useSave } from "@/context/SaveContext";
+import VerifiedBadge from "./VerifiedBadge";
 
 export default function ProductCard({ product, vendor, onAddToCart, badges = [] }) {
   const { isProductSaved, toggleSaveProduct } = useSave();
@@ -13,7 +14,7 @@ export default function ProductCard({ product, vendor, onAddToCart, badges = [] 
 
   const images = product.images || [];
   const hasMultipleImages = images.length > 1;
-  const name = product.title || product.name || "";
+  const name = product.title || product.name || ""; 
 
   useEffect(() => {
     if (!hasMultipleImages) return;
@@ -104,8 +105,9 @@ export default function ProductCard({ product, vendor, onAddToCart, badges = [] 
         </div>
 
         <div className="space-y-1 p-3 pb-0">
-          <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-ink-400">
-            {vendor?.name ?? "Vendor"}
+          <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-ink-400">
+            <span className="truncate">{vendor?.name ?? "Vendor"}</span>
+            {vendor?.verified && <VerifiedBadge size={13} className="shrink-0" />}
           </p>
           <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-5 text-ink-800">
             {name}
