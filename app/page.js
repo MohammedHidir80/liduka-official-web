@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -84,6 +84,41 @@ function VendorStrip({ list, seeMore, isVendorSaved, toggleSaveVendor }) {
   );
 }
 
+// Pull down at the top of the page (phones) to reload. The refresh reloads the page, so new products show up.
+const PULL_AT = 64;
+function usePullToRefresh() {
+  const [pull, setPull] = useState(0);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let startY = null;
+    let dist = 0;
+    const html = document.documentElement;
+    const prev = html.style.overscrollBehaviorY;
+    html.style.overscrollBehaviorY = "contain"; // stop the browser's own pull-to-refresh so there is only one
+    const start = (e) => { startY = window.scrollY <= 0 && window.innerWidth < 768 ? e.touches[0].clientY : null; dist = 0; };
+    const move = (e) => {
+      if (startY == null) return;
+      dist = (e.touches[0].clientY - startY) * 0.5;
+      if (dist > 0 && window.scrollY <= 0) setPull(Math.min(dist, 90)); else setPull(0);
+    };
+    const end = () => {
+      if (startY != null && dist >= PULL_AT) { setBusy(true); setPull(PULL_AT); window.location.reload(); return; }
+      startY = null; dist = 0; setPull(0);
+    };
+    window.addEventListener("touchstart", start, { passive: true });
+    window.addEventListener("touchmove", move, { passive: true });
+    window.addEventListener("touchend", end, { passive: true });
+    return () => {
+      html.style.overscrollBehaviorY = prev;
+      window.removeEventListener("touchstart", start);
+      window.removeEventListener("touchmove", move);
+      window.removeEventListener("touchend", end);
+    };
+  }, []);
+  return { pull, busy };
+}
+
 export default function HomePage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -96,6 +131,7 @@ export default function HomePage() {
   const { quickAdd, modalProps } = useQuickAdd();
 
   const [query, setQuery] = useState("");
+  const { pull, busy: refreshing } = usePullToRefresh();
 
   const seeMore = t.seeMore || "See more";
 
@@ -145,6 +181,19 @@ export default function HomePage() {
 
   return (
     <div className="container-page space-y-8 py-4">
+      {/* pull-to-refresh indicator (phones) */}
+      {pull > 0 && (
+        <div className="pointer-events-none fixed inset-x-0 top-14 z-30 flex justify-center md:hidden" style={{ transform: `translateY(${pull * 0.6}px)` }}>
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-white shadow-card">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+              className={`text-brand-600 ${refreshing ? "animate-spin" : ""}`}
+              style={refreshing ? undefined : { transform: `rotate(${Math.min(pull / PULL_AT, 1) * 360}deg)`, opacity: Math.min(pull / PULL_AT, 1) }}>
+              <path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 4v5h-5" />
+            </svg>
+          </span>
+        </div>
+      )}
+
       {/* Header & Search */}
       <section>
         {locationLabel && (

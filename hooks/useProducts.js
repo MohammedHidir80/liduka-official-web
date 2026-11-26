@@ -1,19 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getExchangeRate } from "@/utils/currency";
 import { toWebProduct, withDisplay } from "@/utils/product";
 
 export default function useProducts({ currency = "GHS", vendorId = null, category = null } = {}) {
   const [raw, setRaw] = useState([]);
-  const [ratings, setRatings] = useState({});
   const [rates, setRates] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // 1) Live active products that are in stock (same rule as mobile)
   // 1) Live active products that are in stock (same rule as mobile)
   useEffect(() => {
     setLoading(true);
@@ -37,35 +35,7 @@ export default function useProducts({ currency = "GHS", vendorId = null, categor
     return () => unsub();
   }, [vendorId, category]);
 
-  // 2) Average ratings from comments, once (same approach as mobile)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const snap = await getDocs(collection(db, "comments"));
-        const sums = {};
-        snap.forEach((d) => {
-          const { productId, rating } = d.data();
-          if (!productId || !rating) return;
-          sums[productId] = sums[productId] || { total: 0, count: 0 };
-          sums[productId].total += Number(rating);
-          sums[productId].count += 1;
-        });
-        const result = {};
-        for (const [pid, s] of Object.entries(sums)) {
-          result[pid] = { average: Math.round((s.total / s.count) * 10) / 10, count: s.count };
-        }
-        if (!cancelled) setRatings(result);
-      } catch (e) {
-        console.error("Ratings error:", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // 3) Exchange rates for every base currency in the list
+  // 2) Exchange rates for every base currency in the list
   useEffect(() => {
     const bases = [...new Set(raw.map((p) => p.currency))].filter((b) => b !== currency);
     if (!bases.length) return;
@@ -80,20 +50,20 @@ export default function useProducts({ currency = "GHS", vendorId = null, categor
     };
   }, [raw, currency]);
 
-  // 4) Final list
+  // 3) Final list. Ratings come from the product itself (kept up to date by the updateProductRating function),
+  //    so the page no longer reads every review in the database.
   const products = useMemo(
     () =>
       raw.map((p) => {
-        const r = ratings[p.id];
         const rate = p.currency === currency ? 1 : rates[`${p.currency}_${currency}`];
         return withDisplay(p, {
           currency,
           rate,
-          rating: r?.average ?? 0,
-          reviews: r?.count ?? 0,
+          rating: Number(p.averageRating) || 0,
+          reviews: Number(p.ratingsCount) || 0,
         });
       }),
-    [raw, ratings, rates, currency]
+    [raw, rates, currency]
   );
 
   return { products, loading, error };

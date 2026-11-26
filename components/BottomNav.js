@@ -37,6 +37,14 @@ export default function BottomNav() {
   const isActive = (tab) =>
     tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
 
+  // Home tab while already on Home: first tap scrolls to the top, tapping again (at the top) reloads.
+  const onTabClick = (e, tab, active) => {
+    if (!tab.exact || !active) return;
+    e.preventDefault();
+    if (window.scrollY > 40) window.scrollTo({ top: 0, behavior: "smooth" });
+    else window.location.reload();
+  };
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-100 bg-white/95 backdrop-blur shadow-nav md:hidden">
       <ul className="safe-bottom grid grid-cols-4 pt-2">
@@ -62,6 +70,7 @@ export default function BottomNav() {
             <li key={tab.href}>
               <Link
                 href={tab.href}
+                onClick={(e) => onTabClick(e, tab, active)}
                 className={`flex flex-col items-center gap-1 pb-1.5 text-[11px] font-semibold transition ${
                   active ? "text-brand-600" : "text-ink-400"
                 }`}
