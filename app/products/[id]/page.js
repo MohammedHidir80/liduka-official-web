@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useSave } from "@/context/SaveContext";
@@ -75,6 +77,18 @@ function ProductView({ product, vendor, reviewsState }) {
   const [error, setError] = useState("");
   const [flash, setFlash] = useState(false);
   const optionsRef = useRef(null);
+
+  // Verified tick: read straight from the vendor's profile, so it shows even if the product hook doesn't pass it on
+  const [verified, setVerified] = useState(!!vendor?.verified);
+  useEffect(() => {
+    const vid = vendor?.id || product.vendorId;
+    if (!vid) return;
+    let off = false;
+    getDoc(doc(db, "users", vid))
+      .then((s) => { if (!off) setVerified(!!s.data()?.verified); })
+      .catch(() => {});
+    return () => { off = true; };
+  }, [vendor?.id, product.vendorId]);
 
   const isSaved = isProductSaved(product.id);
   const images = product.images || [];
@@ -317,7 +331,7 @@ function ProductView({ product, vendor, reviewsState }) {
                 <div>
                   <span className="flex items-center gap-1 font-bold text-ink-900">
                     {vendor.name}
-                    {vendor.verified && <VerifiedBadge size={16} className="shrink-0" />}
+                    {verified && <VerifiedBadge size={16} className="shrink-0" />}
                   </span>
                   {vendorPlace && (
                     <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-500">
@@ -505,7 +519,7 @@ function ProductView({ product, vendor, reviewsState }) {
           </button>
         </div>
       )}
-
+ 
       {/* Toast */}
       {showToast && (
         <div className="fixed left-1/2 top-20 z-[100] flex -translate-x-1/2 items-center gap-2 rounded-full bg-ink-900 px-6 py-3 text-sm font-bold text-white shadow-xl animate-in fade-in slide-in-from-top-4 duration-300">
